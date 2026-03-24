@@ -18,6 +18,14 @@ const authQueries = (db) => {
             return rows[0];
         },
 
+        // Update name and password for an unverified user re-signing up
+        updateUnverifiedUser: async (userId, fullName, passwordHash) => {
+            await db.execute(
+                "UPDATE Users SET FullName = ?, PasswordHash = ? WHERE UserID = ?",
+                [fullName, passwordHash, userId],
+            );
+        },
+
         // Insert a new user
         createUser: async (fullName, email, passwordHash) => {
             const [result] = await db.execute(
@@ -37,10 +45,13 @@ const authQueries = (db) => {
             );
         },
 
-        // Find a record in VerifyTokens by token
+        // Find a verify token and join the user row in one query
         findVerifyToken: async (token) => {
             const [rows] = await db.execute(
-                "SELECT * FROM VerifyTokens WHERE Token = ?",
+                `SELECT u.UserID, u.Email, u.FullName, vt.ValidTill
+                 FROM VerifyTokens vt
+                 JOIN Users u ON u.UserID = vt.UserID
+                 WHERE vt.Token = ?`,
                 [token],
             );
             return rows[0];
@@ -51,6 +62,11 @@ const authQueries = (db) => {
             await db.execute("DELETE FROM VerifyTokens WHERE Token = ?", [
                 token,
             ]);
+        },
+
+        // Delete all verify tokens for a user (to refresh with a new one)
+        deleteVerifyTokensByUserId: async (userId) => {
+            await db.execute("DELETE FROM VerifyTokens WHERE UserID = ?", [userId]);
         },
 
         // Mark user as verified

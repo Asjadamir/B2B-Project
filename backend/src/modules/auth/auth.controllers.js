@@ -7,7 +7,8 @@ import env from "../../config/env.js";
 
 // ── Email sender ─────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
-    service: "gmail",
+    port: 465,
+    host: "smtp.gmail.com",
     auth: {
         user: env.EMAIL_USER,
         pass: env.EMAIL_PASSWORD,
@@ -17,11 +18,12 @@ const transporter = nodemailer.createTransport({
 const authControllers = (pool) => {
     const {
         findUserByEmail,
-        findUserById,
         createUser,
+        updateUnverifiedUser,
         saveVerifyToken,
         findVerifyToken,
         deleteVerifyToken,
+        deleteVerifyTokensByUserId,
         markUserVerified,
         saveResetToken,
         findResetToken,
@@ -44,36 +46,68 @@ const authControllers = (pool) => {
 
                 // 2. Check if email already registered
                 const existingUser = await findUserByEmail(email);
+
                 if (existingUser) {
-                    return res
-                        .status(409)
-                        .json({ message: "Email is already registered." });
+                    // 2a. Already verified — reject
+                    if (existingUser.IsVerified) {
+                        return res
+                            .status(409)
+                            .json({ message: "Email is already registered." });
+                    }
+
+                    // 2b. Exists but unverified — update credentials and resend
+                    const passwordHash = await bcrypt.hash(password, 12);
+                    await updateUnverifiedUser(
+                        existingUser.UserID,
+                        fullName,
+                        passwordHash,
+                    );
+
+                    const token = crypto.randomBytes(32).toString("hex");
+                    await deleteVerifyTokensByUserId(existingUser.UserID);
+                    await saveVerifyToken(existingUser.UserID, token);
+
+                    const verifyUrl = `${env.FRONTEND_URL}/verify-email/${token}`;
+                    await transporter.sendMail({
+                        from: env.EMAIL_USER,
+                        to: email,
+                        subject: "CoreChain — Verify your email",
+                        html: `
+                            <h2>Welcome to CoreChain, ${fullName}!</h2>
+                            <p>Your details have been updated. Click the link below to verify your account.</p>
+                            <p>This link expires in 2 hours.</p>
+                            <a href="${verifyUrl}">${verifyUrl}</a>
+                        `,
+                    });
+
+                    return res.status(200).json({
+                        message:
+                            "A new verification link has been sent to your email.",
+                    });
                 }
 
-                // 3. Hash password
+                // 3. New user — hash password
                 const passwordHash = await bcrypt.hash(password, 12);
 
                 // 4. Create user
                 const userId = await createUser(fullName, email, passwordHash);
 
-                // 5. Generate token
+                // 5. Generate and save token
                 const token = crypto.randomBytes(32).toString("hex");
-
-                // 6. Save token to VerifyTokens table
                 await saveVerifyToken(userId, token);
 
-                // 7. Send verification email
+                // 6. Send verification email
                 const verifyUrl = `${env.FRONTEND_URL}/verify-email/${token}`;
                 await transporter.sendMail({
                     from: env.EMAIL_USER,
                     to: email,
                     subject: "CoreChain — Verify your email",
                     html: `
-        <h2>Welcome to CoreChain, ${fullName}!</h2>
-        <p>Click the link below to verify your account.</p>
-        <p>This link expires in 24 hours.</p>
-        <a href="${verifyUrl}">${verifyUrl}</a>
-      `,
+                        <h2>Welcome to CoreChain, ${fullName}!</h2>
+                        <p>Click the link below to verify your account.</p>
+                        <p>This link expires in 2 hours.</p>
+                        <a href="${verifyUrl}">${verifyUrl}</a>
+                    `,
                 });
 
                 return res.status(201).json({
@@ -119,24 +153,48 @@ const authControllers = (pool) => {
                         .json({ message: "Invalid email or password." });
                 }
 
-                // 4. Decide redirect based on account state
-                let redirectTo = "/dashboard";
+                // 4. Block unverified users and resend a fresh verification email
                 if (!user.IsVerified) {
-                    redirectTo = "/verify-email";
-                }
-                // More checks (Staff table, IsActive) will be added later
+                    const newToken = crypto.randomBytes(32).toString("hex");
+                    await deleteVerifyTokensByUserId(user.UserID);
+                    await saveVerifyToken(user.UserID, newToken);
 
-                // 5. Sign JWT
+                    const verifyUrl = `${env.FRONTEND_URL}/verify-email/${newToken}`;
+                    await transporter.sendMail({
+                        from: env.EMAIL_USER,
+                        to: user.Email,
+                        subject: "CoreChain — Verify your email",
+                        html: `
+                            <h2>Email Verification Required</h2>
+                            <p>You must verify your email before signing in.</p>
+                            <p>Click the link below — it expires in 2 hours.</p>
+                            <a href="${verifyUrl}">${verifyUrl}</a>
+                        `,
+                    });
+
+                    return res.status(403).json({
+                        message:
+                            "Your email is not verified. A new verification link has been sent to your inbox.",
+                    });
+                }
+
+                // 5. Sign JWT and set HTTP-only cookie
                 const token = jwt.sign(
                     { userId: user.UserID, email: user.Email },
                     env.JWT_SECRET,
                     { expiresIn: env.JWT_EXPIRES_IN },
                 );
 
+                res.cookie("token", token, {
+                    httpOnly: true,
+                    secure: env.NODE_ENV === "production",
+                    sameSite: "strict",
+                    maxAge: 24 * 60 * 60 * 1000,
+                });
+
                 return res.status(200).json({
                     message: "Login successful.",
-                    token,
-                    redirectTo,
+                    email: user.Email,
                 });
             } catch (error) {
                 console.error("Login error:", error);
@@ -153,7 +211,9 @@ const authControllers = (pool) => {
                 secure: env.NODE_ENV === "production",
                 sameSite: "strict",
             });
-            return res.status(200).json({ message: "Logged out successfully." });
+            return res
+                .status(200)
+                .json({ message: "Logged out successfully." });
         },
 
         // ── FORGOT PASSWORD ──────────────────────────────────────────
@@ -162,7 +222,9 @@ const authControllers = (pool) => {
                 const { email } = req.body;
 
                 if (!email) {
-                    return res.status(400).json({ message: "Email is required." });
+                    return res
+                        .status(400)
+                        .json({ message: "Email is required." });
                 }
 
                 const user = await findUserByEmail(email);
@@ -170,7 +232,8 @@ const authControllers = (pool) => {
                 // Always return 200 to avoid revealing whether the email exists
                 if (!user) {
                     return res.status(200).json({
-                        message: "If that email is registered, a reset link has been sent.",
+                        message:
+                            "If that email is registered, a reset link has been sent.",
                     });
                 }
 
@@ -191,11 +254,14 @@ const authControllers = (pool) => {
                 });
 
                 return res.status(200).json({
-                    message: "If that email is registered, a reset link has been sent.",
+                    message:
+                        "If that email is registered, a reset link has been sent.",
                 });
             } catch (error) {
                 console.error("Forgot password error:", error);
-                return res.status(500).json({ message: "Internal server error." });
+                return res
+                    .status(500)
+                    .json({ message: "Internal server error." });
             }
         },
 
@@ -206,27 +272,43 @@ const authControllers = (pool) => {
                 const { password } = req.body;
 
                 if (!password) {
-                    return res.status(400).json({ message: "New password is required." });
+                    return res
+                        .status(400)
+                        .json({ message: "New password is required." });
                 }
 
                 const record = await findResetToken(token);
                 if (!record) {
-                    return res.status(400).json({ message: "Invalid or expired reset link." });
+                    return res
+                        .status(400)
+                        .json({ message: "Invalid or expired reset link." });
                 }
 
                 if (new Date() > new Date(record.ValidTill)) {
                     await deleteResetToken(token);
-                    return res.status(400).json({ message: "Reset link has expired. Please request a new one." });
+                    return res
+                        .status(400)
+                        .json({
+                            message:
+                                "Reset link has expired. Please request a new one.",
+                        });
                 }
 
                 const passwordHash = await bcrypt.hash(password, 12);
                 await updatePassword(record.UserID, passwordHash);
                 await deleteResetToken(token);
 
-                return res.status(200).json({ message: "Password reset successfully. You can now log in." });
+                return res
+                    .status(200)
+                    .json({
+                        message:
+                            "Password reset successfully. You can now log in.",
+                    });
             } catch (error) {
                 console.error("Reset password error:", error);
-                return res.status(500).json({ message: "Internal server error." });
+                return res
+                    .status(500)
+                    .json({ message: "Internal server error." });
             }
         },
 
@@ -253,16 +335,13 @@ const authControllers = (pool) => {
                     });
                 }
 
-                // 3. Mark user as verified
+                // 3. Mark user as verified and delete the token
                 await markUserVerified(record.UserID);
-
-                // 4. Delete the token — it's single use
                 await deleteVerifyToken(token);
 
-                // 5. Auto-login: sign JWT and set it as an HTTP-only cookie
-                const user = await findUserById(record.UserID);
+                // 4. Auto-login: sign JWT and set it as an HTTP-only cookie
                 const jwtToken = jwt.sign(
-                    { userId: user.UserID, email: user.Email },
+                    { userId: record.UserID, email: record.Email },
                     env.JWT_SECRET,
                     { expiresIn: env.JWT_EXPIRES_IN },
                 );
@@ -275,7 +354,9 @@ const authControllers = (pool) => {
                 });
 
                 return res.status(200).json({
-                    message: "Email verified successfully. You are now logged in.",
+                    message:
+                        "Email verified successfully. You are now logged in.",
+                    email: record.Email,
                 });
             } catch (error) {
                 console.error("Verify email error:", error);

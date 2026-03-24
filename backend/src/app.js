@@ -1,5 +1,6 @@
 import express from "express";
 import connectdb from "./config/db.js";
+import cookieParser from "cookie-parser";
 import authControllers from "./modules/auth/auth.controllers.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import businessControllers from "./modules/business/business.controllers.js";
