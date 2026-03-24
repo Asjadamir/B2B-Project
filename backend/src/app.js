@@ -2,6 +2,8 @@ import express from "express";
 import connectdb from "./config/db.js";
 import authControllers from "./modules/auth/auth.controllers.js";
 import authRoutes from "./modules/auth/auth.routes.js";
+import businessControllers from "./modules/business/business.controllers.js";
+import businessRoutes from "./modules/business/business.routes.js";
 
 const app = express();
 
@@ -11,6 +13,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes(authControllers(pool)));
+
+app.use("/api/business", businessRoutes(businessControllers(pool)));
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
