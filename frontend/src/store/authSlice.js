@@ -1,0 +1,127 @@
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import * as api from "@/lib/api";
+
+export const loginThunk = createAsyncThunk("auth/login", async (creds, { rejectWithValue }) => {
+    try {
+        return await api.login(creds);
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
+export const signupThunk = createAsyncThunk("auth/signup", async (data, { rejectWithValue }) => {
+    try {
+        return await api.signup(data);
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
+export const logoutThunk = createAsyncThunk("auth/logout", async (_, { rejectWithValue }) => {
+    try {
+        return await api.logout();
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
+export const forgotPasswordThunk = createAsyncThunk("auth/forgotPassword", async (data, { rejectWithValue }) => {
+    try {
+        return await api.forgotPassword(data);
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
+export const resetPasswordThunk = createAsyncThunk("auth/resetPassword", async ({ token, password }, { rejectWithValue }) => {
+    try {
+        return await api.resetPassword(token, { password });
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
+export const verifyEmailThunk = createAsyncThunk("auth/verifyEmail", async (token, { rejectWithValue }) => {
+    try {
+        return await api.verifyEmail(token);
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
+const stored = localStorage.getItem("user");
+
+const authSlice = createSlice({
+    name: "auth",
+    initialState: {
+        user: stored ? JSON.parse(stored) : null,
+        loading: false,
+        error: null,
+        successMessage: null,
+    },
+    reducers: {
+        clearAuthStatus(state) {
+            state.error = null;
+            state.successMessage = null;
+        },
+        setUser(state, action) {
+            state.user = action.payload;
+            localStorage.setItem("user", JSON.stringify(action.payload));
+        },
+    },
+    extraReducers: (builder) => {
+        const pending = (state) => { state.loading = true; state.error = null; state.successMessage = null; };
+        const rejected = (state, action) => { state.loading = false; state.error = action.payload; };
+
+        builder
+            .addCase(loginThunk.pending, pending)
+            .addCase(loginThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                const userData = { email: action.payload.email };
+                state.user = userData;
+                localStorage.setItem("user", JSON.stringify(userData));
+            })
+            .addCase(loginThunk.rejected, rejected)
+
+            .addCase(signupThunk.pending, pending)
+            .addCase(signupThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.successMessage = action.payload.message;
+            })
+            .addCase(signupThunk.rejected, rejected)
+
+            .addCase(logoutThunk.fulfilled, (state) => {
+                state.user = null;
+                state.loading = false;
+                localStorage.removeItem("user");
+            })
+
+            .addCase(forgotPasswordThunk.pending, pending)
+            .addCase(forgotPasswordThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.successMessage = action.payload.message;
+            })
+            .addCase(forgotPasswordThunk.rejected, rejected)
+
+            .addCase(resetPasswordThunk.pending, pending)
+            .addCase(resetPasswordThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.successMessage = action.payload.message;
+            })
+            .addCase(resetPasswordThunk.rejected, rejected)
+
+            .addCase(verifyEmailThunk.pending, pending)
+            .addCase(verifyEmailThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.successMessage = action.payload.message;
+                // Cookie is set by the server; mark user as logged in
+                const userData = { email: action.payload.email || "" };
+                state.user = userData;
+                localStorage.setItem("user", JSON.stringify(userData));
+            })
+            .addCase(verifyEmailThunk.rejected, rejected);
+    },
+});
+
+export const { clearAuthStatus, setUser } = authSlice.actions;
+export default authSlice.reducer;
