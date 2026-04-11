@@ -84,14 +84,14 @@ INSERT INTO Staff_Warehouse (StaffID, WarehouseID, RoleID) VALUES
 -- ============================================================
 --  Category
 -- ============================================================
-INSERT INTO Category (CategoryName, ParentCategoryID) VALUES
-('Electronics',    NULL),  -- CategoryID 1
-('Laptops',        1),     -- CategoryID 2
-('Smartphones',    1),     -- CategoryID 3
-('FMCG',           NULL),  -- CategoryID 4
-('Beverages',      4),     -- CategoryID 5
-('Construction',   NULL),  -- CategoryID 6
-('Cement & Steel', 6);     -- CategoryID 7
+INSERT INTO Category (CategoryName, BusinessID) VALUES
+('Electronics',    1),   -- CategoryID 1  → TechMart
+('Laptops',        1),   -- CategoryID 2  → TechMart
+('Smartphones',    1),   -- CategoryID 3  → TechMart
+('FMCG',           2),   -- CategoryID 4  → SwiftGoods
+('Beverages',      2),   -- CategoryID 5  → SwiftGoods
+('Construction',   3),   -- CategoryID 6  → BuildCore
+('Cement & Steel', 3);   -- CategoryID 7  → BuildCore
 
 -- ============================================================
 --  Product

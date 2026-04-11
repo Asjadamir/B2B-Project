@@ -149,13 +149,16 @@ CREATE TABLE Staff_Warehouse (
 --  10. Category
 -- ============================================================
 CREATE TABLE Category (
-    CategoryID       INT          PRIMARY KEY AUTO_INCREMENT,
-    CategoryName     VARCHAR(100) NOT NULL,
-    ParentCategoryID INT          DEFAULT NULL,
+    CategoryID   INT          PRIMARY KEY AUTO_INCREMENT,
+    CategoryName VARCHAR(100) NOT NULL,
+    BusinessID   INT          NOT NULL,
 
-    CONSTRAINT fk_category_parent
-        FOREIGN KEY (ParentCategoryID) REFERENCES Category(CategoryID)
-        ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT fk_category_business
+        FOREIGN KEY (BusinessID) REFERENCES Business(BusinessID)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+
+    CONSTRAINT uq_category_per_business
+        UNIQUE (CategoryName, BusinessID)
 );
 
 -- ============================================================

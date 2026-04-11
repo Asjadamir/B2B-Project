@@ -7,6 +7,10 @@ import businessControllers from "./modules/business/business.controllers.js";
 import businessRoutes from "./modules/business/business.routes.js";
 import supplierControllers from "./modules/supplier/supplier.controllers.js";
 import supplierRoutes from "./modules/supplier/supplier.routes.js";
+import categoryControllers from "./modules/category/category.controllers.js";
+import categoryRoutes from "./modules/category/category.routes.js";
+import productControllers from "./modules/product/product.controllers.js";
+import productRoutes from "./modules/product/product.routes.js";
 
 const app = express();
 
@@ -20,6 +24,8 @@ app.use("/api/auth", authRoutes(authControllers(pool)));
 app.use("/api/business", businessRoutes(businessControllers(pool)));
 
 app.use("/api/supplier", supplierRoutes(supplierControllers(pool)));
+app.use("/api/category", categoryRoutes(categoryControllers(pool)));
+app.use("/api/product",  productRoutes(productControllers(pool)));
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
