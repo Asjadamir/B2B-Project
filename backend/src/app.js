@@ -13,6 +13,8 @@ import productControllers from "./modules/product/product.controllers.js";
 import productRoutes from "./modules/product/product.routes.js";
 import employeeControllers from "./modules/employee/employee.controllers.js";
 import employeeRoutes from "./modules/employee/employee.routes.js";
+import warehouseControllers from "./modules/warehouse/warehouse.controllers.js";
+import warehouseRoutes from "./modules/warehouse/warehouse.routes.js";
 
 const app = express();
 
@@ -29,6 +31,7 @@ app.use("/api/supplier", supplierRoutes(supplierControllers(pool)));
 app.use("/api/category", categoryRoutes(categoryControllers(pool)));
 app.use("/api/product",  productRoutes(productControllers(pool)));
 app.use("/api/employee", employeeRoutes(employeeControllers(pool)));
+app.use("/api/warehouse", warehouseRoutes(warehouseControllers(pool)));
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
