@@ -57,10 +57,10 @@ INSERT INTO Staff (UserID, BusinessID, RoleID, IsActive) VALUES
 -- ============================================================
 --  JoiningRequest
 -- ============================================================
-INSERT INTO JoiningRequest (UserID, BusinessID, Status, ValidTill) VALUES
-(5, 1, 'Pending',  '2025-06-30'),
-(7, 1, 'Rejected', '2025-05-01'),
-(3, 2, 'Approved', '2025-07-15');
+INSERT INTO JoiningRequest (Email, BusinessID, RoleID, InvitedBy, Token, Status, ValidTill) VALUES
+('john.doe@example.com',  1, 3, 1, 'seed-token-abc123', 'Pending',  '2026-05-01 00:00:00'),
+('jane.smith@example.com',2, 4, 4, 'seed-token-def456', 'Accepted', '2026-04-20 00:00:00'),
+('mark.ali@example.com',  1, 2, 1, 'seed-token-ghi789', 'Expired',  '2026-03-01 00:00:00');
 
 -- ============================================================
 --  Warehouse

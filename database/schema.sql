@@ -92,19 +92,25 @@ CREATE TABLE Staff (
 --  7. JoiningRequest
 -- ============================================================
 CREATE TABLE JoiningRequest (
-    RequestID   INT      PRIMARY KEY AUTO_INCREMENT,
-    UserID      INT      NOT NULL,
-    BusinessID  INT      NOT NULL,
-    Status      ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
-    ValidTill   DATE,
-    RequestedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    RequestID   INT          PRIMARY KEY AUTO_INCREMENT,
+    Email       VARCHAR(150) NOT NULL,
+    BusinessID  INT          NOT NULL,
+    RoleID      INT          NOT NULL,
+    InvitedBy   INT          NOT NULL,
+    Token       VARCHAR(64)  NOT NULL UNIQUE,
+    Status      ENUM('Pending', 'Accepted', 'Expired') NOT NULL DEFAULT 'Pending',
+    ValidTill   DATETIME     NOT NULL,
+    InvitedAt   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_jr_user
-        FOREIGN KEY (UserID) REFERENCES Users(UserID)
-        ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_jr_business
         FOREIGN KEY (BusinessID) REFERENCES Business(BusinessID)
-        ON DELETE CASCADE ON UPDATE CASCADE
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_jr_role
+        FOREIGN KEY (RoleID) REFERENCES Roles(RoleID)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_jr_invitedby
+        FOREIGN KEY (InvitedBy) REFERENCES Users(UserID)
+        ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- ============================================================
