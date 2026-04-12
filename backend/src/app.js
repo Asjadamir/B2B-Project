@@ -15,7 +15,9 @@ import employeeControllers from "./modules/employee/employee.controllers.js";
 import employeeRoutes from "./modules/employee/employee.routes.js";
 import warehouseControllers from "./modules/warehouse/warehouse.controllers.js";
 import warehouseRoutes from "./modules/warehouse/warehouse.routes.js";
-
+import purchaseOrderRoutes from "./modules/purchaseOrder/purchaseOrder.routes.js";
+import productControllers from "./modules/product/product.controllers.js";
+import purchaseOrderControllers from "./modules/purchaseOrder/purchaseOrder.controller.js";
 const app = express();
 
 const pool = await connectdb();
@@ -32,6 +34,7 @@ app.use("/api/category", categoryRoutes(categoryControllers(pool)));
 app.use("/api/product",  productRoutes(productControllers(pool)));
 app.use("/api/employee", employeeRoutes(employeeControllers(pool)));
 app.use("/api/warehouse", warehouseRoutes(warehouseControllers(pool)));
+app.use("/api/purchaseorder",purchaseOrderRoutes(purchaseOrderControllers(pool)));
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
