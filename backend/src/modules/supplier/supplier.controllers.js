@@ -1,4 +1,5 @@
 import queries from "./supplier.queries.js";
+import logAudit from "../../utils/audit.js";
 
 const MANAGING_ROLES = ["Owner", "Manager"];
 
@@ -81,6 +82,7 @@ const supplierControllers = (pool) => {
                 }
 
                 const supplierId = await createSupplier(supplierName, contactNumber, email, description, businessId);
+                await logAudit(pool, { businessId, actorId: userId, action: "CREATE_SUPPLIER", entityType: "Supplier", entityId: supplierId, details: `Created supplier "${supplierName}".` });
                 return res.status(201).json({ message: "Supplier created successfully.", supplierId });
             } catch (error) {
                 console.error("Create supplier error:", error);
@@ -114,6 +116,7 @@ const supplierControllers = (pool) => {
                 }
 
                 await updateSupplier(id, supplierName, contactNumber, email, description);
+                await logAudit(pool, { businessId: supplier.BusinessID, actorId: userId, action: "UPDATE_SUPPLIER", entityType: "Supplier", entityId: id, details: `Updated supplier "${supplierName}".` });
                 return res.status(200).json({ message: "Supplier updated successfully." });
             } catch (error) {
                 console.error("Update supplier error:", error);
@@ -142,6 +145,7 @@ const supplierControllers = (pool) => {
                 }
 
                 await deactivateSupplier(id);
+                await logAudit(pool, { businessId: supplier.BusinessID, actorId: userId, action: "DEACTIVATE_SUPPLIER", entityType: "Supplier", entityId: id, details: `Deactivated supplier "${supplier.SupplierName}".` });
                 return res.status(200).json({ message: "Supplier deactivated successfully." });
             } catch (error) {
                 console.error("Deactivate supplier error:", error);

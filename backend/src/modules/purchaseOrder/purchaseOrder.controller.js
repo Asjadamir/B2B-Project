@@ -1,4 +1,5 @@
 import queries from "./purchaseOrder.queries.js";
+import logAudit from "../../utils/audit.js";
 
 const PO_ROLES    = ["Owner", "Manager", "Procurement Officer"];
 const CANCEL_ROLES = ["Owner", "Manager"];
@@ -176,6 +177,7 @@ const purchaseOrderControllers = (pool) => {
                     await addPOItem(poId, item.productId, item.quantity, item.unitCost);
                 }
 
+                await logAudit(pool, { businessId, actorId: userId, action: "CREATE_PO", entityType: "PurchaseOrder", entityId: poId, details: `Created purchase order from supplier "${supplier.SupplierName}" to warehouse "${warehouse.WarehouseName}" with ${items.length} item(s).` });
                 return res.status(201).json({ message: "Purchase order created successfully.", poId });
             } catch (error) {
                 console.error("Create purchase order error:", error);
@@ -217,6 +219,7 @@ const purchaseOrderControllers = (pool) => {
                         return res.status(403).json({ message: "Only Owner or Manager can cancel purchase orders." });
                     }
                     await updatePOStatus(id, "Cancelled");
+                    await logAudit(pool, { businessId: order.BusinessID, actorId: userId, action: "CANCEL_PO", entityType: "PurchaseOrder", entityId: id, details: `Cancelled purchase order #${id}.` });
                     return res.status(200).json({ message: "Purchase order cancelled." });
                 }
 
@@ -236,6 +239,7 @@ const purchaseOrderControllers = (pool) => {
                 }
 
                 await updatePOStatus(id, "Received");
+                await logAudit(pool, { businessId: order.BusinessID, actorId: userId, action: "RECEIVE_PO", entityType: "PurchaseOrder", entityId: id, details: `Marked purchase order #${id} as received. Inventory updated with ${items.length} item(s).` });
                 return res.status(200).json({ message: "Purchase order marked as received. Inventory updated." });
             } catch (error) {
                 console.error("Update PO status error:", error);
@@ -293,6 +297,7 @@ const purchaseOrderControllers = (pool) => {
                 }
 
                 const itemId = await addPOItem(id, productId, quantity, unitCost);
+                await logAudit(pool, { businessId: order.BusinessID, actorId: userId, action: "ADD_PO_ITEM", entityType: "PurchaseOrder", entityId: id, details: `Added ${quantity} x "${product.ProductName}" at $${unitCost} to purchase order #${id}.` });
                 return res.status(201).json({ message: "Item added to purchase order.", itemId });
             } catch (error) {
                 console.error("Add PO item error:", error);
@@ -340,6 +345,7 @@ const purchaseOrderControllers = (pool) => {
                 }
 
                 await updatePOItem(itemId, quantity, unitCost);
+                await logAudit(pool, { businessId: order.BusinessID, actorId: userId, action: "UPDATE_PO_ITEM", entityType: "PurchaseOrder", entityId: id, details: `Updated item #${itemId} in purchase order #${id}: quantity ${quantity}, unit cost $${unitCost}.` });
                 return res.status(200).json({ message: "Item updated successfully." });
             } catch (error) {
                 console.error("Update PO item error:", error);
@@ -376,6 +382,7 @@ const purchaseOrderControllers = (pool) => {
                 }
 
                 await deletePOItem(itemId);
+                await logAudit(pool, { businessId: order.BusinessID, actorId: userId, action: "REMOVE_PO_ITEM", entityType: "PurchaseOrder", entityId: id, details: `Removed item #${itemId} from purchase order #${id}.` });
                 return res.status(200).json({ message: "Item removed from purchase order." });
             } catch (error) {
                 console.error("Remove PO item error:", error);

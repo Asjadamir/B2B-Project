@@ -1,4 +1,5 @@
 import queries from "./warehouse.queries.js";
+import logAudit from "../../utils/audit.js";
 
 const MANAGING_ROLES = ["Owner", "Manager"];
 
@@ -101,6 +102,7 @@ const warehouseControllers = (pool) => {
                     city,
                     businessId,
                 );
+                await logAudit(pool, { businessId, actorId: userId, action: "CREATE_WAREHOUSE", entityType: "Warehouse", entityId: warehouseId, details: `Created warehouse "${warehouseName}".` });
                 return res.status(201).json({ message: "Warehouse created successfully.", warehouseId });
             } catch (error) {
                 console.error("Create warehouse error:", error);
@@ -140,6 +142,7 @@ const warehouseControllers = (pool) => {
                 }
 
                 await updateWarehouse(id, warehouseName.trim(), address, city);
+                await logAudit(pool, { businessId: warehouse.BusinessID, actorId: userId, action: "UPDATE_WAREHOUSE", entityType: "Warehouse", entityId: id, details: `Updated warehouse "${warehouse.WarehouseName}" to "${warehouseName}".` });
                 return res.status(200).json({ message: "Warehouse updated successfully." });
             } catch (error) {
                 console.error("Update warehouse error:", error);
@@ -234,6 +237,7 @@ const warehouseControllers = (pool) => {
                 }
 
                 await assignStaff(staffId, id, roleId);
+                await logAudit(pool, { businessId: warehouse.BusinessID, actorId: userId, action: "ASSIGN_STAFF", entityType: "Warehouse", entityId: id, details: `Assigned staff #${staffId} to warehouse "${warehouse.WarehouseName}".` });
                 return res.status(201).json({ message: "Employee assigned to warehouse successfully." });
             } catch (error) {
                 console.error("Assign staff error:", error);
@@ -272,6 +276,7 @@ const warehouseControllers = (pool) => {
                 }
 
                 await updateStaffWarehouseRole(staffId, id, roleId);
+                await logAudit(pool, { businessId: warehouse.BusinessID, actorId: userId, action: "UPDATE_STAFF_ROLE", entityType: "Warehouse", entityId: id, details: `Updated warehouse role for staff #${staffId} in "${warehouse.WarehouseName}".` });
                 return res.status(200).json({ message: "Warehouse role updated successfully." });
             } catch (error) {
                 console.error("Update staff warehouse role error:", error);
@@ -305,6 +310,7 @@ const warehouseControllers = (pool) => {
                 }
 
                 await removeStaff(staffId, id);
+                await logAudit(pool, { businessId: warehouse.BusinessID, actorId: userId, action: "REMOVE_STAFF", entityType: "Warehouse", entityId: id, details: `Removed staff #${staffId} from warehouse "${warehouse.WarehouseName}".` });
                 return res.status(200).json({ message: "Employee removed from warehouse successfully." });
             } catch (error) {
                 console.error("Remove staff from warehouse error:", error);
@@ -341,6 +347,7 @@ const warehouseControllers = (pool) => {
                 }
 
                 await deactivateWarehouse(id);
+                await logAudit(pool, { businessId: warehouse.BusinessID, actorId: userId, action: "DEACTIVATE_WAREHOUSE", entityType: "Warehouse", entityId: id, details: `Deactivated warehouse "${warehouse.WarehouseName}".` });
                 return res.status(200).json({ message: "Warehouse deactivated successfully." });
             } catch (error) {
                 console.error("Deactivate warehouse error:", error);

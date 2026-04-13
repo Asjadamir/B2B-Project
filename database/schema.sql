@@ -352,17 +352,21 @@ CREATE TABLE ProductReturn (
 --  20. AuditLog
 -- ============================================================
 CREATE TABLE AuditLog (
-    LogID      INT         PRIMARY KEY AUTO_INCREMENT,
-    TableName  VARCHAR(50) NOT NULL,
-    ActionType ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL,
-    RecordID   INT         NOT NULL,
-    ChangedBy  INT,
-    LogMessage TEXT,
-    CreatedAt  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    LogID      INT          PRIMARY KEY AUTO_INCREMENT,
+    BusinessID INT          NOT NULL,
+    ActorID    INT          NOT NULL,
+    Action     VARCHAR(100) NOT NULL,
+    EntityType VARCHAR(50)  NOT NULL,
+    EntityID   INT,
+    Details    TEXT,
+    CreatedAt  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_al_changedby
-        FOREIGN KEY (ChangedBy) REFERENCES Users(UserID)
-        ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT fk_al_business
+        FOREIGN KEY (BusinessID) REFERENCES Business(BusinessID)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_al_actor
+        FOREIGN KEY (ActorID) REFERENCES Users(UserID)
+        ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- ============================================================

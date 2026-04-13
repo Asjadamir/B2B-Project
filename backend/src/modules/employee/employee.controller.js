@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import logAudit from "../../utils/audit.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
@@ -107,6 +108,7 @@ const employeeControllers = (pool) => {
                     `,
                 });
 
+                await logAudit(pool, { businessId, actorId: userId, action: "SEND_INVITE", entityType: "Employee", entityId: null, details: `Invited ${email} as ${role.RoleName}.` });
                 return res.status(200).json({ message: "Invitation sent successfully." });
             } catch (error) {
                 console.error("Send invite error:", error);
@@ -220,6 +222,7 @@ const employeeControllers = (pool) => {
                     maxAge: 24 * 60 * 60 * 1000,
                 });
 
+                await logAudit(pool, { businessId: invite.BusinessID, actorId: userId, action: "ACCEPT_INVITE", entityType: "Employee", entityId: userId, details: `${invite.Email} accepted invitation and joined as ${invite.RoleName}.` });
                 return res.status(200).json({
                     message: `Welcome to ${invite.BusinessName}!`,
                     email: invite.Email,
@@ -300,6 +303,7 @@ const employeeControllers = (pool) => {
                 }
 
                 await updateStaffRole(staffId, roleId);
+                await logAudit(pool, { businessId: target.BusinessID, actorId: userId, action: "UPDATE_ROLE", entityType: "Employee", entityId: staffId, details: `Changed role of staff #${staffId} from ${target.RoleName} to ${newRole.RoleName}.` });
                 return res.status(200).json({ message: "Employee role updated successfully." });
             } catch (error) {
                 console.error("Update role error:", error);
@@ -344,6 +348,7 @@ const employeeControllers = (pool) => {
                 }
 
                 await deactivateStaff(staffId);
+                await logAudit(pool, { businessId: target.BusinessID, actorId: userId, action: "EXPEL_EMPLOYEE", entityType: "Employee", entityId: staffId, details: `Expelled staff #${staffId} (${target.RoleName}) from the business.` });
                 return res.status(200).json({ message: "Employee removed from the business." });
             } catch (error) {
                 console.error("Expel employee error:", error);
@@ -373,6 +378,7 @@ const employeeControllers = (pool) => {
                 }
 
                 await deactivateStaff(staffRecord.StaffID);
+                await logAudit(pool, { businessId, actorId: userId, action: "LEAVE_BUSINESS", entityType: "Employee", entityId: staffRecord.StaffID, details: `Left the business (was ${staffRecord.RoleName}).` });
                 return res.status(200).json({ message: "You have left the business." });
             } catch (error) {
                 console.error("Leave business error:", error);

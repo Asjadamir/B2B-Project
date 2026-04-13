@@ -11,15 +11,16 @@ import categoryControllers from "./modules/category/category.controllers.js";
 import categoryRoutes from "./modules/category/category.routes.js";
 import productControllers from "./modules/product/product.controllers.js";
 import productRoutes from "./modules/product/product.routes.js";
-import employeeControllers from "./modules/employee/employee.controllers.js";
+import employeeControllers from "./modules/employee/employee.controller.js";
 import employeeRoutes from "./modules/employee/employee.routes.js";
-import warehouseControllers from "./modules/warehouse/warehouse.controllers.js";
+import warehouseControllers from "./modules/warehouse/warehouse.controller.js";
 import warehouseRoutes from "./modules/warehouse/warehouse.routes.js";
 import purchaseOrderRoutes from "./modules/purchaseOrder/purchaseOrder.routes.js";
-import productControllers from "./modules/product/product.controllers.js";
 import purchaseOrderControllers from "./modules/purchaseOrder/purchaseOrder.controller.js";
 import saleOrderControllers from "./modules/saleOrder/saleOrder.controller.js";
 import saleOrderRoutes from "./modules/saleOrder/saleOrder.routes.js";
+import auditLogControllers from "./modules/auditLog/auditLog.controller.js";
+import auditLogRoutes from "./modules/auditLog/auditLog.routes.js";
 const app = express();
 
 const pool = await connectdb();
@@ -33,11 +34,15 @@ app.use("/api/business", businessRoutes(businessControllers(pool)));
 
 app.use("/api/supplier", supplierRoutes(supplierControllers(pool)));
 app.use("/api/category", categoryRoutes(categoryControllers(pool)));
-app.use("/api/product",  productRoutes(productControllers(pool)));
+app.use("/api/product", productRoutes(productControllers(pool)));
 app.use("/api/employee", employeeRoutes(employeeControllers(pool)));
 app.use("/api/warehouse", warehouseRoutes(warehouseControllers(pool)));
-app.use("/api/purchaseorder",purchaseOrderRoutes(purchaseOrderControllers(pool)));
-app.use("/api/saleorder",saleOrderRoutes(saleOrderControllers(pool)));
+app.use(
+    "/api/purchaseorder",
+    purchaseOrderRoutes(purchaseOrderControllers(pool)),
+);
+app.use("/api/saleorder", saleOrderRoutes(saleOrderControllers(pool)));
+app.use("/api/auditlog", auditLogRoutes(auditLogControllers(pool)));
 app.get("/", (req, res) => {
     res.send("Hello World!");
 });

@@ -1,4 +1,5 @@
 import queries from "./category.queries.js";
+import logAudit from "../../utils/audit.js";
 
 const MANAGING_ROLES = ["Owner", "Manager"];
 
@@ -64,6 +65,7 @@ const categoryControllers = (pool) => {
                 }
 
                 const categoryId = await createCategory(categoryName.trim(), businessId);
+                await logAudit(pool, { businessId, actorId: userId, action: "CREATE_CATEGORY", entityType: "Category", entityId: categoryId, details: `Created category "${categoryName}".` });
                 return res.status(201).json({ message: "Category created successfully.", categoryId });
             } catch (error) {
                 console.error("Create category error:", error);
@@ -103,6 +105,7 @@ const categoryControllers = (pool) => {
                 }
 
                 await updateCategory(id, categoryName.trim());
+                await logAudit(pool, { businessId: category.BusinessID, actorId: userId, action: "UPDATE_CATEGORY", entityType: "Category", entityId: id, details: `Renamed category "${category.CategoryName}" to "${categoryName}".` });
                 return res.status(200).json({ message: "Category updated successfully." });
             } catch (error) {
                 console.error("Update category error:", error);
@@ -136,6 +139,7 @@ const categoryControllers = (pool) => {
                 }
 
                 await deleteCategory(id);
+                await logAudit(pool, { businessId: category.BusinessID, actorId: userId, action: "DELETE_CATEGORY", entityType: "Category", entityId: id, details: `Deleted category "${category.CategoryName}".` });
                 return res.status(200).json({ message: "Category deleted successfully." });
             } catch (error) {
                 console.error("Delete category error:", error);

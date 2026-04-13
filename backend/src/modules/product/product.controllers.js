@@ -1,4 +1,5 @@
 import queries from "./product.queries.js";
+import logAudit from "../../utils/audit.js";
 
 const MANAGING_ROLES = ["Owner", "Manager"];
 
@@ -109,6 +110,7 @@ const productControllers = (pool) => {
                     businessId,
                 );
 
+                await logAudit(pool, { businessId, actorId: userId, action: "CREATE_PRODUCT", entityType: "Product", entityId: productId, details: `Created product "${productName}" (SKU: ${sku.trim().toUpperCase()}).` });
                 return res.status(201).json({ message: "Product created successfully.", productId });
             } catch (error) {
                 console.error("Create product error:", error);
@@ -154,6 +156,7 @@ const productControllers = (pool) => {
                 }
 
                 await updateProduct(id, productName.trim(), sku.trim().toUpperCase(), categoryId, unitOfMeasure.trim(), sellingPrice);
+                await logAudit(pool, { businessId: product.BusinessID, actorId: userId, action: "UPDATE_PRODUCT", entityType: "Product", entityId: id, details: `Updated product "${product.ProductName}": name="${productName}", SKU="${sku.trim().toUpperCase()}", price=${sellingPrice}.` });
                 return res.status(200).json({ message: "Product updated successfully." });
             } catch (error) {
                 console.error("Update product error:", error);
@@ -182,6 +185,7 @@ const productControllers = (pool) => {
                 }
 
                 await deactivateProduct(id);
+                await logAudit(pool, { businessId: product.BusinessID, actorId: userId, action: "DEACTIVATE_PRODUCT", entityType: "Product", entityId: id, details: `Deactivated product "${product.ProductName}" (SKU: ${product.SKU}).` });
                 return res.status(200).json({ message: "Product deactivated successfully." });
             } catch (error) {
                 console.error("Deactivate product error:", error);
@@ -226,6 +230,7 @@ const productControllers = (pool) => {
                 }
 
                 await linkSupplier(id, supplierId);
+                await logAudit(pool, { businessId: product.BusinessID, actorId: userId, action: "LINK_SUPPLIER", entityType: "Product", entityId: id, details: `Linked supplier "${supplier.SupplierName}" to product "${product.ProductName}".` });
                 return res.status(201).json({ message: "Supplier linked successfully." });
             } catch (error) {
                 console.error("Link supplier error:", error);
@@ -259,6 +264,7 @@ const productControllers = (pool) => {
                 }
 
                 await unlinkSupplier(id, supplierId);
+                await logAudit(pool, { businessId: product.BusinessID, actorId: userId, action: "UNLINK_SUPPLIER", entityType: "Product", entityId: id, details: `Unlinked supplier #${supplierId} from product "${product.ProductName}".` });
                 return res.status(200).json({ message: "Supplier unlinked successfully." });
             } catch (error) {
                 console.error("Unlink supplier error:", error);

@@ -1,4 +1,5 @@
 import queries from "./business.queries.js";
+import logAudit from "../../utils/audit.js";
 
 const businessControllers = (pool) => {
     const {
@@ -24,6 +25,7 @@ const businessControllers = (pool) => {
 
                 const businessId = await createBusiness(businessName, description, userId);
                 await addOwnerAsStaff(userId, businessId);
+                await logAudit(pool, { businessId, actorId: userId, action: "CREATE_BUSINESS", entityType: "Business", entityId: businessId, details: `Created business "${businessName}".` });
 
                 return res.status(201).json({
                     message: "Business created successfully.",
@@ -91,6 +93,7 @@ const businessControllers = (pool) => {
                 }
 
                 await updateBusiness(id, businessName, description);
+                await logAudit(pool, { businessId: id, actorId: userId, action: "UPDATE_BUSINESS", entityType: "Business", entityId: id, details: `Updated business name to "${businessName}".` });
                 return res.status(200).json({ message: "Business updated successfully." });
             } catch (error) {
                 console.error("Update business error:", error);
@@ -114,6 +117,7 @@ const businessControllers = (pool) => {
                 }
 
                 await deleteBusiness(id);
+                await logAudit(pool, { businessId: id, actorId: userId, action: "DELETE_BUSINESS", entityType: "Business", entityId: id, details: `Deleted business "${business.BusinessName}".` });
                 return res.status(200).json({ message: "Business deleted successfully." });
             } catch (error) {
                 console.error("Delete business error:", error);
