@@ -83,6 +83,10 @@ const authControllers = (pool) => {
                     return res.status(200).json({
                         message:
                             "A new verification link has been sent to your email.",
+                        data: {
+                            email,
+                            token,
+                        },
                     });
                 }
 
@@ -113,6 +117,10 @@ const authControllers = (pool) => {
                 return res.status(201).json({
                     message:
                         "Account created. Please check your email to verify your account.",
+                    data: {
+                        email,
+                        token,
+                    },
                 });
             } catch (error) {
                 console.error("Signup error:", error);
@@ -256,6 +264,10 @@ const authControllers = (pool) => {
                 return res.status(200).json({
                     message:
                         "If that email is registered, a reset link has been sent.",
+                    data: {
+                        email,
+                        token,
+                    },
                 });
             } catch (error) {
                 console.error("Forgot password error:", error);
@@ -286,24 +298,19 @@ const authControllers = (pool) => {
 
                 if (new Date() > new Date(record.ValidTill)) {
                     await deleteResetToken(token);
-                    return res
-                        .status(400)
-                        .json({
-                            message:
-                                "Reset link has expired. Please request a new one.",
-                        });
+                    return res.status(400).json({
+                        message:
+                            "Reset link has expired. Please request a new one.",
+                    });
                 }
 
                 const passwordHash = await bcrypt.hash(password, 12);
                 await updatePassword(record.UserID, passwordHash);
                 await deleteResetToken(token);
 
-                return res
-                    .status(200)
-                    .json({
-                        message:
-                            "Password reset successfully. You can now log in.",
-                    });
+                return res.status(200).json({
+                    message: "Password reset successfully. You can now log in.",
+                });
             } catch (error) {
                 console.error("Reset password error:", error);
                 return res

@@ -1,5 +1,6 @@
 import express from "express";
 import authMiddleware from "../../middlewares/auth.middleware.js";
+import { productValidator, validate } from "../../utils/validator.js";
 
 const router = express.Router();
 
@@ -8,10 +9,10 @@ const productRoutes = (controllers) => {
 
     router.get("/",                              authMiddleware, getAll);
     router.get("/:id",                           authMiddleware, getById);
-    router.post("/",                             authMiddleware, create);
-    router.put("/:id",                           authMiddleware, update);
+    router.post("/",                             authMiddleware, productValidator.createRules, validate, create);
+    router.put("/:id",                           authMiddleware, productValidator.updateRules, validate, update);
     router.delete("/:id",                        authMiddleware, remove);
-    router.post("/:id/suppliers",                authMiddleware, addSupplier);
+    router.post("/:id/suppliers",                authMiddleware, productValidator.addSupplierRules, validate, addSupplier);
     router.delete("/:id/suppliers/:supplierId",  authMiddleware, removeSupplier);
 
     return router;

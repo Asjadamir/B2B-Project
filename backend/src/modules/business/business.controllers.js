@@ -20,12 +20,26 @@ const businessControllers = (pool) => {
                 const userId = req.user.userId;
 
                 if (!businessName) {
-                    return res.status(400).json({ message: "Business name is required." });
+                    return res
+                        .status(400)
+                        .json({ message: "Business name is required." });
                 }
 
-                const businessId = await createBusiness(businessName, description, userId);
+                const businessId = await createBusiness(
+                    businessName,
+                    description,
+                    userId,
+                );
+                console.log(userId, businessId);
                 await addOwnerAsStaff(userId, businessId);
-                await logAudit(pool, { businessId, actorId: userId, action: "CREATE_BUSINESS", entityType: "Business", entityId: businessId, details: `Created business "${businessName}".` });
+                await logAudit(pool, {
+                    businessId,
+                    actorId: userId,
+                    action: "CREATE_BUSINESS",
+                    entityType: "Business",
+                    entityId: businessId,
+                    details: `Created business "${businessName}".`,
+                });
 
                 return res.status(201).json({
                     message: "Business created successfully.",
@@ -33,7 +47,9 @@ const businessControllers = (pool) => {
                 });
             } catch (error) {
                 console.error("Create business error:", error);
-                return res.status(500).json({ message: "Internal server error." });
+                return res
+                    .status(500)
+                    .json({ message: "Internal server error." });
             }
         },
 
@@ -44,7 +60,9 @@ const businessControllers = (pool) => {
                 return res.status(200).json({ businesses });
             } catch (error) {
                 console.error("Get businesses error:", error);
-                return res.status(500).json({ message: "Internal server error." });
+                return res
+                    .status(500)
+                    .json({ message: "Internal server error." });
             }
         },
 
@@ -56,7 +74,9 @@ const businessControllers = (pool) => {
 
                 const business = await getBusinessById(id);
                 if (!business) {
-                    return res.status(404).json({ message: "Business not found." });
+                    return res
+                        .status(404)
+                        .json({ message: "Business not found." });
                 }
 
                 // Only members (active staff) can view
@@ -68,7 +88,9 @@ const businessControllers = (pool) => {
                 return res.status(200).json({ business });
             } catch (error) {
                 console.error("Get business error:", error);
-                return res.status(500).json({ message: "Internal server error." });
+                return res
+                    .status(500)
+                    .json({ message: "Internal server error." });
             }
         },
 
@@ -80,24 +102,43 @@ const businessControllers = (pool) => {
                 const userId = req.user.userId;
 
                 if (!businessName) {
-                    return res.status(400).json({ message: "Business name is required." });
+                    return res
+                        .status(400)
+                        .json({ message: "Business name is required." });
                 }
 
                 const business = await getBusinessById(id);
                 if (!business) {
-                    return res.status(404).json({ message: "Business not found." });
+                    return res
+                        .status(404)
+                        .json({ message: "Business not found." });
                 }
 
                 if (business.OwnerID !== userId) {
-                    return res.status(403).json({ message: "Only the owner can update this business." });
+                    return res
+                        .status(403)
+                        .json({
+                            message: "Only the owner can update this business.",
+                        });
                 }
 
                 await updateBusiness(id, businessName, description);
-                await logAudit(pool, { businessId: id, actorId: userId, action: "UPDATE_BUSINESS", entityType: "Business", entityId: id, details: `Updated business name to "${businessName}".` });
-                return res.status(200).json({ message: "Business updated successfully." });
+                await logAudit(pool, {
+                    businessId: id,
+                    actorId: userId,
+                    action: "UPDATE_BUSINESS",
+                    entityType: "Business",
+                    entityId: id,
+                    details: `Updated business name to "${businessName}".`,
+                });
+                return res
+                    .status(200)
+                    .json({ message: "Business updated successfully." });
             } catch (error) {
                 console.error("Update business error:", error);
-                return res.status(500).json({ message: "Internal server error." });
+                return res
+                    .status(500)
+                    .json({ message: "Internal server error." });
             }
         },
 
@@ -109,19 +150,36 @@ const businessControllers = (pool) => {
 
                 const business = await getBusinessById(id);
                 if (!business) {
-                    return res.status(404).json({ message: "Business not found." });
+                    return res
+                        .status(404)
+                        .json({ message: "Business not found." });
                 }
 
                 if (business.OwnerID !== userId) {
-                    return res.status(403).json({ message: "Only the owner can delete this business." });
+                    return res
+                        .status(403)
+                        .json({
+                            message: "Only the owner can delete this business.",
+                        });
                 }
 
                 await deleteBusiness(id);
-                await logAudit(pool, { businessId: id, actorId: userId, action: "DELETE_BUSINESS", entityType: "Business", entityId: id, details: `Deleted business "${business.BusinessName}".` });
-                return res.status(200).json({ message: "Business deleted successfully." });
+                await logAudit(pool, {
+                    businessId: id,
+                    actorId: userId,
+                    action: "DELETE_BUSINESS",
+                    entityType: "Business",
+                    entityId: id,
+                    details: `Deleted business "${business.BusinessName}".`,
+                });
+                return res
+                    .status(200)
+                    .json({ message: "Business deleted successfully." });
             } catch (error) {
                 console.error("Delete business error:", error);
-                return res.status(500).json({ message: "Internal server error." });
+                return res
+                    .status(500)
+                    .json({ message: "Internal server error." });
             }
         },
     };

@@ -1,6 +1,8 @@
 import express from "express";
+import cors from "cors";
 import connectdb from "./config/db.js";
 import cookieParser from "cookie-parser";
+import env from "./config/env.js";
 import authControllers from "./modules/auth/auth.controllers.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import businessControllers from "./modules/business/business.controllers.js";
@@ -21,11 +23,15 @@ import saleOrderControllers from "./modules/saleOrder/saleOrder.controller.js";
 import saleOrderRoutes from "./modules/saleOrder/saleOrder.routes.js";
 import auditLogControllers from "./modules/auditLog/auditLog.controller.js";
 import auditLogRoutes from "./modules/auditLog/auditLog.routes.js";
+import productReturnControllers from "./modules/productReturn/productReturn.controller.js";
+import productReturnRoutes from "./modules/productReturn/productReturn.routes.js";
+
 const app = express();
 
 const pool = await connectdb();
 
-app.use(express.json());
+app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
+app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes(authControllers(pool)));
@@ -43,8 +49,16 @@ app.use(
 );
 app.use("/api/saleorder", saleOrderRoutes(saleOrderControllers(pool)));
 app.use("/api/auditlog", auditLogRoutes(auditLogControllers(pool)));
+app.use("/api/productreturn", productReturnRoutes(productReturnControllers(pool)));
+
 app.get("/", (req, res) => {
     res.send("Hello World!");
+});
+
+// Global error handler — catches any unhandled errors thrown in route handlers
+app.use((err, req, res, next) => {
+    console.error("Unhandled error:", err);
+    res.status(500).json({ message: "Internal server error." });
 });
 
 export default app;

@@ -173,7 +173,7 @@ CREATE TABLE Category (
 CREATE TABLE Product (
     ProductID     INT           PRIMARY KEY AUTO_INCREMENT,
     ProductName   VARCHAR(150)  NOT NULL,
-    SKU           VARCHAR(100)  NOT NULL UNIQUE,
+    SKU           VARCHAR(100)  NOT NULL,
     CategoryID    INT           NOT NULL,
     UnitOfMeasure VARCHAR(50)   NOT NULL,
     SellingPrice  DECIMAL(12,2) NOT NULL CHECK (SellingPrice >= 0),
