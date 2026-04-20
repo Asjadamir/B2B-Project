@@ -1,6 +1,6 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { authValidator, validate } from "../../utils/validator";
+import { authValidator, validate } from "../../utils/validator.js";
 
 const router = express.Router();
 

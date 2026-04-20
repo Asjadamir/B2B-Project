@@ -25,7 +25,7 @@ const auditLogQueries = (pool) => {
 
             const where = conditions.join(" AND ");
 
-            const [logs] = await pool.execute(
+            const [logs] = await pool.query(
                 `SELECT l.LogID, l.Action, l.EntityType, l.EntityID, l.Details, l.CreatedAt,
                         u.FullName AS ActorName, u.Email AS ActorEmail
                  FROM AuditLog l
@@ -36,7 +36,7 @@ const auditLogQueries = (pool) => {
                 [...params, parseInt(limit), parseInt(offset)]
             );
 
-            const [[{ total }]] = await pool.execute(
+            const [[{ total }]] = await pool.query(
                 `SELECT COUNT(*) AS total FROM AuditLog l WHERE ${where}`,
                 params
             );

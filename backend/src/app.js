@@ -23,8 +23,6 @@ import saleOrderControllers from "./modules/saleOrder/saleOrder.controller.js";
 import saleOrderRoutes from "./modules/saleOrder/saleOrder.routes.js";
 import auditLogControllers from "./modules/auditLog/auditLog.controller.js";
 import auditLogRoutes from "./modules/auditLog/auditLog.routes.js";
-import productReturnControllers from "./modules/productReturn/productReturn.controller.js";
-import productReturnRoutes from "./modules/productReturn/productReturn.routes.js";
 
 const app = express();
 
@@ -49,7 +47,6 @@ app.use(
 );
 app.use("/api/saleorder", saleOrderRoutes(saleOrderControllers(pool)));
 app.use("/api/auditlog", auditLogRoutes(auditLogControllers(pool)));
-app.use("/api/productreturn", productReturnRoutes(productReturnControllers(pool)));
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
