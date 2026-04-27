@@ -12,18 +12,23 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Eye, EyeOff, Link2, CheckCircle, Warehouse, ShoppingCart, Users } from "lucide-react";
 
 const schema = z.object({
-    fullName: z.string().min(2, "Name must be at least 2 characters"),
+    fullName: z
+        .string()
+        .min(3, "Name must be at least 3 characters")
+        .max(20, "Name must not exceed 20 characters"),
     email: z.string().email("Please enter a valid email address"),
     password: z
         .string()
         .min(8, "Password must be at least 8 characters")
         .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-        .regex(/[0-9]/, "Must contain at least one number"),
+        .regex(/[a-z]/, "Must contain at least one lowercase letter")
+        .regex(/[0-9]/, "Must contain at least one number")
+        .regex(/[^A-Za-z0-9]/, "Must contain at least one symbol"),
 });
 
 function PasswordStrength({ password }) {
     if (!password) return null;
-    const checks = [password.length >= 8, /[A-Z]/.test(password), /[0-9]/.test(password), password.length >= 12];
+    const checks = [password.length >= 8, /[A-Z]/.test(password), /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)];
     const score = checks.filter(Boolean).length;
     const levels = [
         { label: "Weak", color: "bg-destructive" },

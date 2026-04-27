@@ -18,7 +18,7 @@ export const authValidator = {
             .withMessage(
                 "Password must be at least 8 characters long and include uppercase, lowercase, number, and symbol.",
             ),
-        body("fullname")
+        body("fullName")
             .trim()
             .isLength({ min: 3, max: 20 })
             .withMessage(
