@@ -1,6 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { authValidator, validate } from "../../utils/validator.js";
+import authMiddleware from "../../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ const userRoutes = (controllers) => {
         verifyEmail,
         forgotPassword,
         resetPassword,
+        me,
     } = controllers;
 
     router.post("/signup", authValidator.registerRules, validate, signup);
@@ -32,6 +34,7 @@ const userRoutes = (controllers) => {
         login,
     );
     router.post("/logout", logout);
+    router.get("/me", authMiddleware, me);
     router.get("/verify-email/:token", verifyEmail);
     router.post(
         "/forgot-password",

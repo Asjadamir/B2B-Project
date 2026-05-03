@@ -150,14 +150,24 @@ export default function SaleOrderFormPage() {
                         {fields.map((field, index) => (
                             <div key={field.id} className="grid grid-cols-[1fr_100px_110px_36px] gap-2 items-start">
                                 <div className="space-y-1">
-                                    <Select value={watch(`items.${index}.productId`)} onValueChange={(v) => setValue(`items.${index}.productId`, v)} disabled={!watchedWarehouseId}>
+                                    <Select
+                                        value={watch(`items.${index}.productId`)}
+                                        onValueChange={(v) => {
+                                            setValue(`items.${index}.productId`, v);
+                                            const product = warehouseProducts.find((p) => String(p.ProductID) === v);
+                                            if (product?.SellingPrice != null) {
+                                                setValue(`items.${index}.unitPrice`, String(Number(product.SellingPrice).toFixed(2)));
+                                            }
+                                        }}
+                                        disabled={!watchedWarehouseId}
+                                    >
                                         <SelectTrigger className={errors.items?.[index]?.productId ? "border-destructive" : ""}>
                                             <SelectValue placeholder="Select product" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {warehouseProducts.map((p) => (
                                                 <SelectItem key={p.ProductID} value={String(p.ProductID)}>
-                                                    {p.ProductName} {p.CurrentStock !== undefined ? `(${p.CurrentStock} in stock)` : ""}
+                                                    {p.ProductName} {p.AvailableStock !== undefined ? `(${p.AvailableStock} in stock)` : ""}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

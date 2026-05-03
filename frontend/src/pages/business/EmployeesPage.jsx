@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { fetchEmployees, inviteEmployeeThunk, updateEmployeeRoleThunk, removeEmployeeThunk, fetchPendingInvitesThunk } from "@/store/employeeSlice";
+import { fetchEmployees, inviteEmployeeThunk, updateEmployeeRoleThunk, removeEmployeeThunk, fetchPendingInvitesThunk, cancelInviteThunk } from "@/store/employeeSlice";
+import * as api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserPlus, Trash2, Pencil, Users, Clock, Mail } from "lucide-react";
+import { UserPlus, Trash2, Pencil, Users, Clock, Mail, X, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { ROLES, ALL_ROLES } from "@/lib/constants";
 
@@ -101,16 +102,25 @@ function RoleDialog({ open, onOpenChange, employee, onSubmit, loading }) {
 
 export default function EmployeesPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const dispatch = useDispatch();
     const { employees, invites, loading } = useSelector((s) => s.employee);
+    const { user } = useSelector((s) => s.auth);
+
     const [inviteOpen, setInviteOpen] = useState(false);
     const [editRole, setEditRole] = useState(null);
     const [removeTarget, setRemoveTarget] = useState(null);
+    const [leaveOpen, setLeaveOpen] = useState(false);
+    const [leaveLoading, setLeaveLoading] = useState(false);
 
     useEffect(() => {
         dispatch(fetchEmployees(id));
         dispatch(fetchPendingInvitesThunk(id));
     }, [id, dispatch]);
+
+    const currentMember = employees.find((e) => e.UserID === user?.userId);
+    const isManaging = currentMember?.RoleName === "Owner" || currentMember?.RoleName === "Manager";
+    const isOwner = currentMember?.RoleName === "Owner";
 
     async function handleInvite(form) {
         const r = await dispatch(inviteEmployeeThunk(form));
@@ -130,6 +140,26 @@ export default function EmployeesPage() {
         else toast.error(r.payload);
     }
 
+    async function handleCancelInvite(requestId, email) {
+        const r = await dispatch(cancelInviteThunk(requestId));
+        if (!r.error) toast.success(`Invitation to ${email} cancelled`);
+        else toast.error(r.payload);
+    }
+
+    async function handleLeave() {
+        setLeaveLoading(true);
+        try {
+            await api.leaveEmployee({ businessId: Number(id) });
+            toast.success("You have left the business");
+            navigate("/dashboard");
+        } catch (e) {
+            toast.error(e.message);
+            setLeaveOpen(false);
+        } finally {
+            setLeaveLoading(false);
+        }
+    }
+
     const roleMap = Object.fromEntries(ALL_ROLES.map((r) => [r.id, r.name]));
 
     return (
@@ -139,7 +169,16 @@ export default function EmployeesPage() {
                     <h1 className="text-xl font-bold">Employees</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">{employees.length} member{employees.length !== 1 ? "s" : ""}</p>
                 </div>
-                <Button onClick={() => setInviteOpen(true)}><UserPlus className="size-4 mr-1.5" /> Invite Employee</Button>
+                <div className="flex items-center gap-2">
+                    {!isOwner && currentMember && (
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive border-destructive/40 hover:border-destructive" onClick={() => setLeaveOpen(true)}>
+                            <LogOut className="size-3.5 mr-1.5" /> Leave Business
+                        </Button>
+                    )}
+                    {isManaging && (
+                        <Button onClick={() => setInviteOpen(true)}><UserPlus className="size-4 mr-1.5" /> Invite Employee</Button>
+                    )}
+                </div>
             </div>
 
             <Tabs defaultValue="members">
@@ -177,8 +216,11 @@ export default function EmployeesPage() {
                                     </TableRow>
                                 ) : (
                                     employees.map((e) => (
-                                        <TableRow key={e.StaffID}>
-                                            <TableCell className="font-medium">{e.FullName || "—"}</TableCell>
+                                        <TableRow key={e.StaffID} className={e.UserID === user?.userId ? "bg-muted/30" : ""}>
+                                            <TableCell className="font-medium">
+                                                {e.FullName || "—"}
+                                                {e.UserID === user?.userId && <span className="ml-2 text-xs text-muted-foreground">(you)</span>}
+                                            </TableCell>
                                             <TableCell className="text-muted-foreground">{e.Email}</TableCell>
                                             <TableCell>
                                                 <Badge variant={e.RoleName === "Owner" ? "default" : "secondary"} className="text-xs">
@@ -186,7 +228,7 @@ export default function EmployeesPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                {e.RoleName !== "Owner" && (
+                                                {isManaging && e.RoleName !== "Owner" && e.UserID !== user?.userId && (
                                                     <div className="flex items-center gap-1">
                                                         <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditRole(e)}>
                                                             <Pencil className="size-3.5" />
@@ -213,22 +255,36 @@ export default function EmployeesPage() {
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Expires</TableHead>
+                                    {isManaging && <TableHead className="w-16" />}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {invites.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center py-10 text-muted-foreground">
+                                        <TableCell colSpan={isManaging ? 4 : 3} className="text-center py-10 text-muted-foreground">
                                             <Mail className="size-8 mx-auto mb-2 text-muted-foreground/40" />
                                             No pending invitations.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    invites.map((inv, i) => (
-                                        <TableRow key={i}>
+                                    invites.map((inv) => (
+                                        <TableRow key={inv.RequestID}>
                                             <TableCell>{inv.Email}</TableCell>
                                             <TableCell><Badge variant="outline" className="text-xs">{inv.RoleName || "Staff"}</Badge></TableCell>
                                             <TableCell className="text-muted-foreground text-sm">{inv.ValidTill ? new Date(inv.ValidTill).toLocaleDateString() : "—"}</TableCell>
+                                            {isManaging && (
+                                                <TableCell>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="size-7 text-muted-foreground hover:text-destructive"
+                                                        disabled={loading}
+                                                        onClick={() => handleCancelInvite(inv.RequestID, inv.Email)}
+                                                    >
+                                                        <X className="size-3.5" />
+                                                    </Button>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))
                                 )}
@@ -250,6 +306,19 @@ export default function EmployeesPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setRemoveTarget(null)} disabled={loading}>Cancel</Button>
                         <Button variant="destructive" onClick={handleRemove} disabled={loading}>{loading ? "Removing…" : "Remove"}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Leave Business</DialogTitle>
+                        <DialogDescription>You will lose access to this business immediately. This cannot be undone.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setLeaveOpen(false)} disabled={leaveLoading}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleLeave} disabled={leaveLoading}>{leaveLoading ? "Leaving…" : "Leave Business"}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

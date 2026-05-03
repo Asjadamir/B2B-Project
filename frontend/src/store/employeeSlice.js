@@ -26,6 +26,11 @@ export const removeEmployeeThunk = createAsyncThunk("employee/remove", async (st
     catch (e) { return rejectWithValue(e.message); }
 });
 
+export const cancelInviteThunk = createAsyncThunk("employee/cancelInvite", async (requestId, { rejectWithValue }) => {
+    try { await api.cancelInvite(requestId); return requestId; }
+    catch (e) { return rejectWithValue(e.message); }
+});
+
 const employeeSlice = createSlice({
     name: "employee",
     initialState: { employees: [], invites: [], loading: false, error: null },
@@ -64,7 +69,14 @@ const employeeSlice = createSlice({
                 state.loading = false;
                 state.employees = state.employees.filter((e) => e.StaffID !== action.payload);
             })
-            .addCase(removeEmployeeThunk.rejected, rejected);
+            .addCase(removeEmployeeThunk.rejected, rejected)
+
+            .addCase(cancelInviteThunk.pending, pending)
+            .addCase(cancelInviteThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                state.invites = state.invites.filter((i) => i.RequestID !== action.payload);
+            })
+            .addCase(cancelInviteThunk.rejected, rejected);
     },
 });
 

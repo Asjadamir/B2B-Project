@@ -49,6 +49,14 @@ export const verifyEmailThunk = createAsyncThunk("auth/verifyEmail", async (toke
     }
 });
 
+export const checkAuthThunk = createAsyncThunk("auth/check", async (_, { rejectWithValue }) => {
+    try {
+        return await api.getMe();
+    } catch (e) {
+        return rejectWithValue(e.status === 401);
+    }
+});
+
 const stored = localStorage.getItem("user");
 
 const authSlice = createSlice({
@@ -77,7 +85,7 @@ const authSlice = createSlice({
             .addCase(loginThunk.pending, pending)
             .addCase(loginThunk.fulfilled, (state, action) => {
                 state.loading = false;
-                const userData = { email: action.payload.email };
+                const userData = action.payload.data;
                 state.user = userData;
                 localStorage.setItem("user", JSON.stringify(userData));
             })
@@ -114,12 +122,23 @@ const authSlice = createSlice({
             .addCase(verifyEmailThunk.fulfilled, (state, action) => {
                 state.loading = false;
                 state.successMessage = action.payload.message;
-                // Cookie is set by the server; mark user as logged in
-                const userData = { email: action.payload.email || "" };
+                const userData = action.payload.data;
                 state.user = userData;
                 localStorage.setItem("user", JSON.stringify(userData));
             })
-            .addCase(verifyEmailThunk.rejected, rejected);
+            .addCase(verifyEmailThunk.rejected, rejected)
+
+            .addCase(checkAuthThunk.fulfilled, (state, action) => {
+                const userData = action.payload.data;
+                state.user = userData;
+                localStorage.setItem("user", JSON.stringify(userData));
+            })
+            .addCase(checkAuthThunk.rejected, (state, action) => {
+                if (action.payload === true) {
+                    state.user = null;
+                    localStorage.removeItem("user");
+                }
+            });
     },
 });
 

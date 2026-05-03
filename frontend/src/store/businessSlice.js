@@ -34,6 +34,14 @@ export const updateBusinessThunk = createAsyncThunk("business/update", async ({ 
     }
 });
 
+export const fetchMyRoleThunk = createAsyncThunk("business/fetchMyRole", async (businessId, { rejectWithValue }) => {
+    try {
+        return await api.getMyRole(businessId);
+    } catch (e) {
+        return rejectWithValue(e.message);
+    }
+});
+
 export const deleteBusinessThunk = createAsyncThunk("business/delete", async (id, { rejectWithValue }) => {
     try {
         await api.deleteBusiness(id);
@@ -48,6 +56,7 @@ const businessSlice = createSlice({
     initialState: {
         businesses: [],
         currentBusiness: null,
+        currentRole: null,
         loading: false,
         error: null,
     },
@@ -57,6 +66,7 @@ const businessSlice = createSlice({
         },
         clearCurrentBusiness(state) {
             state.currentBusiness = null;
+            state.currentRole = null;
         },
     },
     extraReducers: (builder) => {
@@ -103,7 +113,11 @@ const businessSlice = createSlice({
                 state.loading = false;
                 state.businesses = state.businesses.filter((b) => b.BusinessID !== action.payload);
             })
-            .addCase(deleteBusinessThunk.rejected, rejected);
+            .addCase(deleteBusinessThunk.rejected, rejected)
+
+            .addCase(fetchMyRoleThunk.fulfilled, (state, action) => {
+                state.currentRole = action.payload.role || null;
+            });
     },
 });
 

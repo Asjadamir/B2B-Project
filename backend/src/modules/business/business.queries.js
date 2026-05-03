@@ -1,80 +1,78 @@
-const businessQueries = (db) => {
-    return {
-        // Create a new business
-        createBusiness: async (businessName, description, ownerID) => {
-            const [result] = await db.execute(
-                `INSERT INTO Business (BusinessName, Description, OwnerID)
-                VALUES (?, ?, ?)`,
-                [businessName, description ?? null, ownerID],
-            );
-            return result.insertId;
-        },
+import sql from "mssql";
 
-        // Add owner as staff with Owner role (RoleID = 1)
-        addOwnerAsStaff: async (userId, businessId) => {
-            await db.execute(
-                `INSERT INTO Staff (UserID, BusinessID, RoleID, IsActive)
-                VALUES (?, ?, 1, TRUE)`,
-                [userId, businessId],
-            );
-        },
+const businessQueries = {
+    createBusiness: async (businessName, description, ownerID) => {
+        const request = new sql.Request();
+        request.input("BusinessName", sql.NVarChar(255), businessName);
+        request.input("Description", sql.NVarChar(sql.MAX), description ?? null);
+        request.input("OwnerID", sql.Int, ownerID);
+        const result = await request.execute("sp_CreateBusiness");
+        return result.recordset[0].BusinessID;
+    },
 
-        // Get all businesses where the user is owner or active staff
-        getMyBusinesses: async (userId) => {
-            const [rows] = await db.execute(
-                `SELECT DISTINCT
-                    b.BusinessID,
-                    b.BusinessName,
-                    b.Description,
-                    b.OwnerID,
-                    b.CreatedAt,
-                    r.RoleName AS MyRole
-                FROM Business b
-                JOIN Staff s ON b.BusinessID = s.BusinessID
-                JOIN Roles r ON s.RoleID = r.RoleID
-                WHERE s.UserID = ? AND s.IsActive = TRUE`,
-                [userId],
-            );
-            return rows;
-        },
+    addOwnerAsStaff: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        await request.query(`
+            INSERT INTO Staff (UserID, BusinessID, RoleID, IsActive)
+            VALUES (@UserID, @BusinessID, 1, 1)
+        `);
+    },
 
-        // Get a single business by ID
-        getBusinessById: async (businessId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Business WHERE BusinessID = ?`,
-                [businessId],
-            );
-            return rows[0];
-        },
+    getMyBusinesses: async (userId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        const result = await request.query(`
+            SELECT DISTINCT
+                b.BusinessID, b.BusinessName, b.Description,
+                b.OwnerID, b.CreatedAt, r.RoleName AS MyRole
+            FROM Business b
+            JOIN Staff s ON b.BusinessID = s.BusinessID
+            JOIN Roles r ON s.RoleID = r.RoleID
+            WHERE s.UserID = @UserID AND s.IsActive = 1 AND b.IsActive = 1
+        `);
+        return result.recordset;
+    },
 
-        // Check if user is active staff in a business
-        getStaffRecord: async (userId, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT s.*, r.RoleName FROM Staff s
-                JOIN Roles r ON s.RoleID = r.RoleID
-                WHERE s.UserID = ? AND s.BusinessID = ? AND s.IsActive = TRUE`,
-                [userId, businessId],
-            );
-            return rows[0];
-        },
+    getBusinessById: async (businessId) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(
+            "SELECT * FROM Business WHERE BusinessID = @BusinessID AND IsActive = 1"
+        );
+        return result.recordset[0];
+    },
 
-        // Update business details (owner only)
-        updateBusiness: async (businessId, businessName, description) => {
-            await db.execute(
-                `UPDATE Business SET BusinessName = ?, Description = ?
-                WHERE BusinessID = ?`,
-                [businessName, description ?? null, businessId],
-            );
-        },
+    getStaffRecord: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT s.*, r.RoleName FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            WHERE s.UserID = @UserID AND s.BusinessID = @BusinessID AND s.IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Delete a business (owner only)
-        deleteBusiness: async (businessId) => {
-            await db.execute(
-                `DELETE FROM Business WHERE BusinessID = ?`,
-                [businessId],
-            );
-        },
-    };
+    updateBusiness: async (businessId, businessName, description) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        request.input("BusinessName", sql.NVarChar(255), businessName);
+        request.input("Description", sql.NVarChar(sql.MAX), description ?? null);
+        await request.query(`
+            UPDATE Business
+            SET BusinessName = @BusinessName, Description = @Description
+            WHERE BusinessID = @BusinessID
+        `);
+    },
+
+    deleteBusiness: async (businessId) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        await request.query("UPDATE Business SET IsActive = 0 WHERE BusinessID = @BusinessID");
+    },
 };
 
 export default businessQueries;

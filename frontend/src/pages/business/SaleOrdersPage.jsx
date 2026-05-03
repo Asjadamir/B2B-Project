@@ -95,8 +95,8 @@ export default function SaleOrdersPage() {
                                     <TableCell className="font-mono text-sm font-medium">SO-{String(o.SOID).padStart(4, "0")}</TableCell>
                                     <TableCell className="font-medium">{o.CustomerName || "—"}</TableCell>
                                     <TableCell className="text-muted-foreground">{o.WarehouseName || "—"}</TableCell>
-                                    <TableCell className="text-muted-foreground">{new Date(o.CreatedAt).toLocaleDateString()}</TableCell>
-                                    <TableCell className="text-right font-medium">${Number(o.TotalAmount || 0).toFixed(2)}</TableCell>
+                                    <TableCell className="text-muted-foreground">{new Date(o.OrderDate).toLocaleDateString()}</TableCell>
+                                    <TableCell className="text-right font-medium">${Number(o.TotalValue || 0).toFixed(2)}</TableCell>
                                     <TableCell>
                                         <Badge className={`text-xs ${STATUS_COLORS[o.Status]}`} variant="outline">{o.Status}</Badge>
                                     </TableCell>

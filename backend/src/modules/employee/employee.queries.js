@@ -1,185 +1,232 @@
-const employeeQueries = (db) => {
-    return {
-        // Check if user is active staff in a business (returns record with RoleName)
-        getStaffRecord: async (userId, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT s.*, r.RoleName FROM Staff s
-                JOIN Roles r ON s.RoleID = r.RoleID
-                WHERE s.UserID = ? AND s.BusinessID = ? AND s.IsActive = TRUE`,
-                [userId, businessId],
-            );
-            return rows[0];
-        },
+import sql from "mssql";
 
-        // Get business by ID (for invite email content)
-        getBusinessById: async (businessId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Business WHERE BusinessID = ?`,
-                [businessId],
-            );
-            return rows[0];
-        },
+const employeeQueries = {
+    getMyRole: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT r.RoleName FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            WHERE s.UserID = @UserID AND s.BusinessID = @BusinessID AND s.IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Get role by ID (validate roleId sent in invite)
-        getRoleById: async (roleId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Roles WHERE RoleID = ?`,
-                [roleId],
-            );
-            return rows[0];
-        },
+    getStaffRecord: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT s.*, r.RoleName FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            WHERE s.UserID = @UserID AND s.BusinessID = @BusinessID AND s.IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Check if there is already a pending invite for this email + business
-        findPendingInvite: async (email, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM JoiningRequest
-                WHERE Email = ? AND BusinessID = ? AND Status = 'Pending'`,
-                [email, businessId],
-            );
-            return rows[0];
-        },
+    getBusinessById: async (businessId) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(
+            "SELECT * FROM Business WHERE BusinessID = @BusinessID AND IsActive = 1"
+        );
+        return result.recordset[0];
+    },
 
-        // Check if a user is already an active staff member of a business
-        isAlreadyStaff: async (userId, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT 1 FROM Staff
-                WHERE UserID = ? AND BusinessID = ? AND IsActive = TRUE LIMIT 1`,
-                [userId, businessId],
-            );
-            return rows.length > 0;
-        },
+    getRoleById: async (roleId) => {
+        const request = new sql.Request();
+        request.input("RoleID", sql.Int, roleId);
+        const result = await request.query(
+            "SELECT * FROM Roles WHERE RoleID = @RoleID"
+        );
+        return result.recordset[0];
+    },
 
-        // Save the invitation record
-        createInvite: async (email, businessId, roleId, invitedBy, token) => {
-            const [result] = await db.execute(
-                `INSERT INTO JoiningRequest (Email, BusinessID, RoleID, InvitedBy, Token, ValidTill)
-                VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 48 HOUR))`,
-                [email, businessId, roleId, invitedBy, token],
-            );
-            return result.insertId;
-        },
+    findPendingInvite: async (email, businessId) => {
+        const request = new sql.Request();
+        request.input("Email", sql.VarChar(255), email);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT * FROM JoiningRequest
+            WHERE Email = @Email AND BusinessID = @BusinessID AND Status = 'Pending'
+        `);
+        return result.recordset[0];
+    },
 
-        // Find an invite by token — joins business and role for full context
-        findInviteByToken: async (token) => {
-            const [rows] = await db.execute(
-                `SELECT jr.*, b.BusinessName, r.RoleName
-                FROM JoiningRequest jr
-                JOIN Business b ON jr.BusinessID = b.BusinessID
-                JOIN Roles r    ON jr.RoleID     = r.RoleID
-                WHERE jr.Token = ?`,
-                [token],
-            );
-            return rows[0];
-        },
+    isAlreadyStaff: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(
+            "SELECT TOP 1 1 AS Found FROM Staff WHERE UserID = @UserID AND BusinessID = @BusinessID AND IsActive = 1"
+        );
+        return result.recordset.length > 0;
+    },
 
-        // Find a user by email (to handle existing accounts)
-        findUserByEmail: async (email) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Users WHERE Email = ?`,
-                [email],
-            );
-            return rows[0];
-        },
+    createInvite: async (email, businessId, roleId, invitedBy, token) => {
+        const request = new sql.Request();
+        request.input("Email", sql.VarChar(255), email);
+        request.input("BusinessID", sql.Int, businessId);
+        request.input("RoleID", sql.Int, roleId);
+        request.input("InvitedBy", sql.Int, invitedBy);
+        request.input("Token", sql.VarChar(64), token);
+        const result = await request.query(`
+            INSERT INTO JoiningRequest (Email, BusinessID, RoleID, InvitedBy, Token, ValidTill)
+            OUTPUT INSERTED.RequestID
+            VALUES (@Email, @BusinessID, @RoleID, @InvitedBy, @Token, DATEADD(HOUR, 48, GETDATE()))
+        `);
+        return result.recordset[0].RequestID;
+    },
 
-        // Create a new user — already verified (no email verification needed)
-        createVerifiedUser: async (fullName, email, passwordHash) => {
-            const [result] = await db.execute(
-                `INSERT INTO Users (FullName, Email, PasswordHash, IsVerified)
-                VALUES (?, ?, ?, TRUE)`,
-                [fullName, email, passwordHash],
-            );
-            return result.insertId;
-        },
+    findInviteById: async (requestId) => {
+        const request = new sql.Request();
+        request.input("RequestID", sql.Int, requestId);
+        const result = await request.query(`
+            SELECT jr.*, b.BusinessName, r.RoleName
+            FROM JoiningRequest jr
+            JOIN Business b ON jr.BusinessID = b.BusinessID
+            JOIN Roles r    ON jr.RoleID     = r.RoleID
+            WHERE jr.RequestID = @RequestID
+        `);
+        return result.recordset[0];
+    },
 
-        // Add user to Staff with the role from the invite
-        addToStaff: async (userId, businessId, roleId) => {
-            await db.execute(
-                `INSERT INTO Staff (UserID, BusinessID, RoleID, IsActive)
-                VALUES (?, ?, ?, TRUE)`,
-                [userId, businessId, roleId],
-            );
-        },
+    findInviteByToken: async (token) => {
+        const request = new sql.Request();
+        request.input("Token", sql.VarChar(64), token);
+        const result = await request.query(`
+            SELECT jr.*, b.BusinessName, r.RoleName
+            FROM JoiningRequest jr
+            JOIN Business b ON jr.BusinessID = b.BusinessID
+            JOIN Roles r    ON jr.RoleID     = r.RoleID
+            WHERE jr.Token = @Token
+        `);
+        return result.recordset[0];
+    },
 
-        // Mark invite as accepted
-        markInviteAccepted: async (requestId) => {
-            await db.execute(
-                `UPDATE JoiningRequest SET Status = 'Accepted' WHERE RequestID = ?`,
-                [requestId],
-            );
-        },
+    findUserByEmail: async (email) => {
+        const request = new sql.Request();
+        request.input("Email", sql.VarChar(255), email);
+        const result = await request.query(
+            "SELECT * FROM Users WHERE Email = @Email"
+        );
+        return result.recordset[0];
+    },
 
-        // Get a single staff record by StaffID (with role info)
-        getStaffById: async (staffId) => {
-            const [rows] = await db.execute(
-                `SELECT s.*, r.RoleName, u.Email, u.FullName
-                FROM Staff s
-                JOIN Roles r ON s.RoleID = r.RoleID
-                JOIN Users u ON s.UserID = u.UserID
-                WHERE s.StaffID = ?`,
-                [staffId],
-            );
-            return rows[0];
-        },
+    createVerifiedUser: async (fullName, email, passwordHash) => {
+        const request = new sql.Request();
+        request.input("FullName", sql.NVarChar(255), fullName);
+        request.input("Email", sql.VarChar(255), email);
+        request.input("PasswordHash", sql.VarChar(255), passwordHash);
+        const result = await request.query(`
+            INSERT INTO Users (FullName, Email, PasswordHash, IsVerified)
+            OUTPUT INSERTED.UserID
+            VALUES (@FullName, @Email, @PasswordHash, 1)
+        `);
+        return result.recordset[0].UserID;
+    },
 
-        // Get a staff record by UserID + BusinessID (for leave flow)
-        getStaffByUserAndBusiness: async (userId, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT s.*, r.RoleName FROM Staff s
-                JOIN Roles r ON s.RoleID = r.RoleID
-                WHERE s.UserID = ? AND s.BusinessID = ? AND s.IsActive = TRUE`,
-                [userId, businessId],
-            );
-            return rows[0];
-        },
+    addToStaff: async (userId, businessId, roleId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        request.input("RoleID", sql.Int, roleId);
+        await request.query(`
+            INSERT INTO Staff (UserID, BusinessID, RoleID, IsActive)
+            VALUES (@UserID, @BusinessID, @RoleID, 1)
+        `);
+    },
 
-        // Update the role of a staff member
-        updateStaffRole: async (staffId, roleId) => {
-            await db.execute(
-                `UPDATE Staff SET RoleID = ? WHERE StaffID = ?`,
-                [roleId, staffId],
-            );
-        },
+    markInviteAccepted: async (requestId) => {
+        const request = new sql.Request();
+        request.input("RequestID", sql.Int, requestId);
+        await request.query(
+            "UPDATE JoiningRequest SET Status = 'Accepted' WHERE RequestID = @RequestID"
+        );
+    },
 
-        // Soft-remove a staff member (expel or leave)
-        deactivateStaff: async (staffId) => {
-            await db.execute(
-                `UPDATE Staff SET IsActive = FALSE WHERE StaffID = ?`,
-                [staffId],
-            );
-        },
+    getStaffById: async (staffId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        const result = await request.query(`
+            SELECT s.*, r.RoleName, u.Email, u.FullName
+            FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            JOIN Users u ON s.UserID = u.UserID
+            WHERE s.StaffID = @StaffID
+        `);
+        return result.recordset[0];
+    },
 
-        // Get all active staff/employees for a business
-        getEmployeesByBusiness: async (businessId) => {
-            const [rows] = await db.execute(
-                `SELECT s.StaffID, s.UserID, s.IsActive, s.JoinedAt,
-                        u.FullName, u.Email,
-                        r.RoleID, r.RoleName
-                FROM Staff s
-                JOIN Users u  ON s.UserID  = u.UserID
-                JOIN Roles r  ON s.RoleID  = r.RoleID
-                WHERE s.BusinessID = ?
-                ORDER BY s.JoinedAt DESC`,
-                [businessId],
-            );
-            return rows;
-        },
+    getStaffByUserAndBusiness: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT s.*, r.RoleName FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            WHERE s.UserID = @UserID AND s.BusinessID = @BusinessID AND s.IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Get all pending invitations sent by a business
-        getPendingInvites: async (businessId) => {
-            const [rows] = await db.execute(
-                `SELECT jr.RequestID, jr.Email, jr.InvitedAt, jr.ValidTill,
-                        r.RoleName,
-                        u.FullName AS InvitedByName
-                FROM JoiningRequest jr
-                JOIN Roles r  ON jr.RoleID     = r.RoleID
-                JOIN Users u  ON jr.InvitedBy  = u.UserID
-                WHERE jr.BusinessID = ? AND jr.Status = 'Pending'
-                ORDER BY jr.InvitedAt DESC`,
-                [businessId],
-            );
-            return rows;
-        },
-    };
+    updateStaffRole: async (staffId, roleId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        request.input("RoleID", sql.Int, roleId);
+        await request.query(
+            "UPDATE Staff SET RoleID = @RoleID WHERE StaffID = @StaffID"
+        );
+    },
+
+    deactivateStaff: async (staffId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        await request.query(
+            "UPDATE Staff SET IsActive = 0 WHERE StaffID = @StaffID"
+        );
+    },
+
+    getEmployeesByBusiness: async (businessId) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT s.StaffID, s.UserID, s.IsActive, s.JoinedAt,
+                   u.FullName, u.Email,
+                   r.RoleID, r.RoleName
+            FROM Staff s
+            JOIN Users u ON s.UserID  = u.UserID
+            JOIN Roles r ON s.RoleID  = r.RoleID
+            WHERE s.BusinessID = @BusinessID AND s.IsActive = 1
+            ORDER BY s.JoinedAt DESC
+        `);
+        return result.recordset;
+    },
+
+    cancelInvite: async (requestId) => {
+        const request = new sql.Request();
+        request.input("RequestID", sql.Int, requestId);
+        await request.query(
+            "UPDATE JoiningRequest SET Status = 'Cancelled' WHERE RequestID = @RequestID AND Status = 'Pending'"
+        );
+    },
+
+    getPendingInvites: async (businessId) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT jr.RequestID, jr.Email, jr.InvitedAt, jr.ValidTill,
+                   r.RoleName,
+                   u.FullName AS InvitedByName
+            FROM JoiningRequest jr
+            JOIN Roles r ON jr.RoleID    = r.RoleID
+            JOIN Users u ON jr.InvitedBy = u.UserID
+            WHERE jr.BusinessID = @BusinessID AND jr.Status = 'Pending'
+            ORDER BY jr.InvitedAt DESC
+        `);
+        return result.recordset;
+    },
 };
 
 export default employeeQueries;

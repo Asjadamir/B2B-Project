@@ -1,178 +1,185 @@
-const warehouseQueries = (db) => {
-    return {
-        // Check if user is active staff in a business (returns record with RoleName)
-        getStaffRecord: async (userId, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT s.*, r.RoleName FROM Staff s
-                JOIN Roles r ON s.RoleID = r.RoleID
-                WHERE s.UserID = ? AND s.BusinessID = ? AND s.IsActive = TRUE`,
-                [userId, businessId],
-            );
-            return rows[0];
-        },
+import sql from "mssql";
 
-        // Get all active warehouses for a business
-        getWarehousesByBusiness: async (businessId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Warehouse
-                WHERE BusinessID = ? AND IsActive = TRUE
-                ORDER BY WarehouseName`,
-                [businessId],
-            );
-            return rows;
-        },
+const warehouseQueries = {
+    getStaffRecord: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT s.*, r.RoleName FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            WHERE s.UserID = @UserID AND s.BusinessID = @BusinessID AND s.IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Get a single warehouse by ID
-        getWarehouseById: async (warehouseId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Warehouse WHERE WarehouseID = ?`,
-                [warehouseId],
-            );
-            return rows[0];
-        },
+    getWarehousesByBusiness: async (businessId) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT * FROM Warehouse
+            WHERE BusinessID = @BusinessID AND IsActive = 1
+            ORDER BY WarehouseName
+        `);
+        return result.recordset;
+    },
 
-        // Check if warehouse name already exists for this business
-        findByName: async (warehouseName, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Warehouse
-                WHERE WarehouseName = ? AND BusinessID = ? AND IsActive = TRUE`,
-                [warehouseName, businessId],
-            );
-            return rows[0];
-        },
+    getWarehouseById: async (warehouseId) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        const result = await request.query(
+            "SELECT * FROM Warehouse WHERE WarehouseID = @WarehouseID"
+        );
+        return result.recordset[0];
+    },
 
-        // Create a new warehouse
-        createWarehouse: async (warehouseName, address, city, businessId) => {
-            const [result] = await db.execute(
-                `INSERT INTO Warehouse (WarehouseName, Address, City, BusinessID)
-                VALUES (?, ?, ?, ?)`,
-                [warehouseName, address ?? null, city ?? null, businessId],
-            );
-            return result.insertId;
-        },
+    findByName: async (warehouseName, businessId) => {
+        const request = new sql.Request();
+        request.input("WarehouseName", sql.NVarChar(255), warehouseName);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT * FROM Warehouse
+            WHERE WarehouseName = @WarehouseName AND BusinessID = @BusinessID AND IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Update warehouse details
-        updateWarehouse: async (warehouseId, warehouseName, address, city) => {
-            await db.execute(
-                `UPDATE Warehouse
-                SET WarehouseName = ?, Address = ?, City = ?
-                WHERE WarehouseID = ?`,
-                [warehouseName, address ?? null, city ?? null, warehouseId],
-            );
-        },
+    createWarehouse: async (warehouseName, address, city, businessId) => {
+        const request = new sql.Request();
+        request.input("WarehouseName", sql.NVarChar(255), warehouseName);
+        request.input("Address", sql.NVarChar(500), address ?? null);
+        request.input("City", sql.NVarChar(100), city ?? null);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            INSERT INTO Warehouse (WarehouseName, Address, City, BusinessID)
+            OUTPUT INSERTED.WarehouseID
+            VALUES (@WarehouseName, @Address, @City, @BusinessID)
+        `);
+        return result.recordset[0].WarehouseID;
+    },
 
-        // Soft delete warehouse
-        deactivateWarehouse: async (warehouseId) => {
-            await db.execute(
-                `UPDATE Warehouse SET IsActive = FALSE WHERE WarehouseID = ?`,
-                [warehouseId],
-            );
-        },
+    updateWarehouse: async (warehouseId, warehouseName, address, city) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        request.input("WarehouseName", sql.NVarChar(255), warehouseName);
+        request.input("Address", sql.NVarChar(500), address ?? null);
+        request.input("City", sql.NVarChar(100), city ?? null);
+        await request.query(`
+            UPDATE Warehouse
+            SET WarehouseName = @WarehouseName, Address = @Address, City = @City
+            WHERE WarehouseID = @WarehouseID
+        `);
+    },
 
-        // Block deletion if warehouse has any pending purchase orders
-        hasPendingPurchaseOrders: async (warehouseId) => {
-            const [rows] = await db.execute(
-                `SELECT 1 FROM PurchaseOrder
-                WHERE WarehouseID = ? AND Status = 'Pending' LIMIT 1`,
-                [warehouseId],
-            );
-            return rows.length > 0;
-        },
+    deactivateWarehouse: async (warehouseId) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        await request.query(
+            "UPDATE Warehouse SET IsActive = 0 WHERE WarehouseID = @WarehouseID"
+        );
+    },
 
-        // Block deletion if warehouse has any pending sale orders
-        hasPendingSaleOrders: async (warehouseId) => {
-            const [rows] = await db.execute(
-                `SELECT 1 FROM SaleOrder
-                WHERE WarehouseID = ? AND Status = 'Pending' LIMIT 1`,
-                [warehouseId],
-            );
-            return rows.length > 0;
-        },
+    hasPendingPurchaseOrders: async (warehouseId) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        const result = await request.query(
+            "SELECT TOP 1 1 AS Found FROM PurchaseOrder WHERE WarehouseID = @WarehouseID AND Status = 'Pending'"
+        );
+        return result.recordset.length > 0;
+    },
 
-        // ── Staff_Warehouse queries ───────────────────────────────────
+    hasPendingSaleOrders: async (warehouseId) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        const result = await request.query(
+            "SELECT TOP 1 1 AS Found FROM SaleOrder WHERE WarehouseID = @WarehouseID AND Status = 'Pending'"
+        );
+        return result.recordset.length > 0;
+    },
 
-        // Get all staff assigned to a warehouse (with user + role info)
-        getWarehouseStaff: async (warehouseId) => {
-            const [rows] = await db.execute(
-                `SELECT sw.StaffID, sw.AssignedAt,
-                        u.FullName, u.Email,
-                        r.RoleID, r.RoleName
-                FROM Staff_Warehouse sw
-                JOIN Staff s  ON sw.StaffID  = s.StaffID
-                JOIN Users u  ON s.UserID    = u.UserID
-                JOIN Roles r  ON sw.RoleID   = r.RoleID
-                WHERE sw.WarehouseID = ? AND s.IsActive = TRUE
-                ORDER BY sw.AssignedAt DESC`,
-                [warehouseId],
-            );
-            return rows;
-        },
+    getWarehouseStaff: async (warehouseId) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        const result = await request.query(`
+            SELECT sw.StaffID, sw.AssignedAt,
+                   u.FullName, u.Email,
+                   r.RoleID, r.RoleName
+            FROM Staff_Warehouse sw
+            JOIN Staff s ON sw.StaffID  = s.StaffID
+            JOIN Users u ON s.UserID    = u.UserID
+            JOIN Roles r ON sw.RoleID   = r.RoleID
+            WHERE sw.WarehouseID = @WarehouseID AND s.IsActive = 1
+            ORDER BY sw.AssignedAt DESC
+        `);
+        return result.recordset;
+    },
 
-        // Get all warehouses an employee is assigned to
-        getStaffWarehouses: async (staffId) => {
-            const [rows] = await db.execute(
-                `SELECT sw.AssignedAt, r.RoleName,
-                        w.WarehouseID, w.WarehouseName, w.Address, w.City
-                FROM Staff_Warehouse sw
-                JOIN Warehouse w ON sw.WarehouseID = w.WarehouseID
-                JOIN Roles r     ON sw.RoleID      = r.RoleID
-                WHERE sw.StaffID = ? AND w.IsActive = TRUE
-                ORDER BY w.WarehouseName`,
-                [staffId],
-            );
-            return rows;
-        },
+    getStaffWarehouses: async (staffId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        const result = await request.query(`
+            SELECT sw.AssignedAt, r.RoleName,
+                   w.WarehouseID, w.WarehouseName, w.Address, w.City
+            FROM Staff_Warehouse sw
+            JOIN Warehouse w ON sw.WarehouseID = w.WarehouseID
+            JOIN Roles r     ON sw.RoleID      = r.RoleID
+            WHERE sw.StaffID = @StaffID AND w.IsActive = 1
+            ORDER BY w.WarehouseName
+        `);
+        return result.recordset;
+    },
 
-        // Check if a staff member is already assigned to a warehouse
-        isStaffAssigned: async (staffId, warehouseId) => {
-            const [rows] = await db.execute(
-                `SELECT 1 FROM Staff_Warehouse
-                WHERE StaffID = ? AND WarehouseID = ? LIMIT 1`,
-                [staffId, warehouseId],
-            );
-            return rows.length > 0;
-        },
+    isStaffAssigned: async (staffId, warehouseId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        request.input("WarehouseID", sql.Int, warehouseId);
+        const result = await request.query(
+            "SELECT TOP 1 1 AS Found FROM Staff_Warehouse WHERE StaffID = @StaffID AND WarehouseID = @WarehouseID"
+        );
+        return result.recordset.length > 0;
+    },
 
-        // Get a staff record by StaffID — to verify they belong to same business
-        getStaffById: async (staffId) => {
-            const [rows] = await db.execute(
-                `SELECT s.*, r.RoleName, u.FullName, u.Email
-                FROM Staff s
-                JOIN Roles r ON s.RoleID = r.RoleID
-                JOIN Users u ON s.UserID = u.UserID
-                WHERE s.StaffID = ? AND s.IsActive = TRUE`,
-                [staffId],
-            );
-            return rows[0];
-        },
+    getStaffById: async (staffId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        const result = await request.query(`
+            SELECT s.*, r.RoleName, u.FullName, u.Email
+            FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            JOIN Users u ON s.UserID = u.UserID
+            WHERE s.StaffID = @StaffID AND s.IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Assign a staff member to a warehouse with a role
-        assignStaff: async (staffId, warehouseId, roleId) => {
-            await db.execute(
-                `INSERT INTO Staff_Warehouse (StaffID, WarehouseID, RoleID)
-                VALUES (?, ?, ?)`,
-                [staffId, warehouseId, roleId],
-            );
-        },
+    assignStaff: async (staffId, warehouseId, roleId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        request.input("WarehouseID", sql.Int, warehouseId);
+        request.input("RoleID", sql.Int, roleId);
+        await request.query(
+            "INSERT INTO Staff_Warehouse (StaffID, WarehouseID, RoleID) VALUES (@StaffID, @WarehouseID, @RoleID)"
+        );
+    },
 
-        // Update the role of a staff member in a warehouse
-        updateStaffWarehouseRole: async (staffId, warehouseId, roleId) => {
-            await db.execute(
-                `UPDATE Staff_Warehouse SET RoleID = ?
-                WHERE StaffID = ? AND WarehouseID = ?`,
-                [roleId, staffId, warehouseId],
-            );
-        },
+    updateStaffWarehouseRole: async (staffId, warehouseId, roleId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        request.input("WarehouseID", sql.Int, warehouseId);
+        request.input("RoleID", sql.Int, roleId);
+        await request.query(
+            "UPDATE Staff_Warehouse SET RoleID = @RoleID WHERE StaffID = @StaffID AND WarehouseID = @WarehouseID"
+        );
+    },
 
-        // Remove a staff member from a warehouse
-        removeStaff: async (staffId, warehouseId) => {
-            await db.execute(
-                `DELETE FROM Staff_Warehouse
-                WHERE StaffID = ? AND WarehouseID = ?`,
-                [staffId, warehouseId],
-            );
-        },
-    };
+    removeStaff: async (staffId, warehouseId) => {
+        const request = new sql.Request();
+        request.input("StaffID", sql.Int, staffId);
+        request.input("WarehouseID", sql.Int, warehouseId);
+        await request.query(
+            "DELETE FROM Staff_Warehouse WHERE StaffID = @StaffID AND WarehouseID = @WarehouseID"
+        );
+    },
 };
 
 export default warehouseQueries;

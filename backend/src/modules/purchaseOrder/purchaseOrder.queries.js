@@ -1,198 +1,214 @@
-const purchaseOrderQueries = (db) => {
-    return {
-        // Check if user is active staff in a business (returns record with RoleName)
-        getStaffRecord: async (userId, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT s.*, r.RoleName FROM Staff s
-                JOIN Roles r ON s.RoleID = r.RoleID
-                WHERE s.UserID = ? AND s.BusinessID = ? AND s.IsActive = TRUE`,
-                [userId, businessId],
-            );
-            return rows[0];
-        },
+import sql from "mssql";
 
-        // Get supplier by ID (used to derive businessId and validate ownership)
-        getSupplierById: async (supplierId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Supplier WHERE SupplierID = ? AND IsActive = TRUE`,
-                [supplierId],
-            );
-            return rows[0];
-        },
+const purchaseOrderQueries = {
+    getStaffRecord: async (userId, businessId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT s.*, r.RoleName FROM Staff s
+            JOIN Roles r ON s.RoleID = r.RoleID
+            WHERE s.UserID = @UserID AND s.BusinessID = @BusinessID AND s.IsActive = 1
+        `);
+        return result.recordset[0];
+    },
 
-        // Get warehouse by ID (validate it belongs to same business)
-        getWarehouseById: async (warehouseId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Warehouse WHERE WarehouseID = ? AND IsActive = TRUE`,
-                [warehouseId],
-            );
-            return rows[0];
-        },
+    getSupplierById: async (supplierId) => {
+        const request = new sql.Request();
+        request.input("SupplierID", sql.Int, supplierId);
+        const result = await request.query(
+            "SELECT * FROM Supplier WHERE SupplierID = @SupplierID AND IsActive = 1"
+        );
+        return result.recordset[0];
+    },
 
-        // Get products linked to a specific supplier for a business
-        getProductsBySupplier: async (supplierId, businessId) => {
-            const [rows] = await db.execute(
-                `SELECT p.ProductID, p.ProductName, p.SKU, p.UnitOfMeasure,
-                        p.SellingPrice, c.CategoryName
-                FROM Product p
-                JOIN Category c          ON p.CategoryID  = c.CategoryID
-                JOIN Product_Supplier ps ON p.ProductID   = ps.ProductID
-                WHERE ps.SupplierID = ? AND p.BusinessID = ? AND p.IsActive = TRUE
-                ORDER BY p.ProductName`,
-                [supplierId, businessId],
-            );
-            return rows;
-        },
+    getWarehouseById: async (warehouseId) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        const result = await request.query(
+            "SELECT * FROM Warehouse WHERE WarehouseID = @WarehouseID AND IsActive = 1"
+        );
+        return result.recordset[0];
+    },
 
-        // Validate a single product is linked to the chosen supplier
-        isProductLinkedToSupplier: async (productId, supplierId) => {
-            const [rows] = await db.execute(
-                `SELECT 1 FROM Product_Supplier
-                WHERE ProductID = ? AND SupplierID = ? LIMIT 1`,
-                [productId, supplierId],
-            );
-            return rows.length > 0;
-        },
+    getProductsBySupplier: async (supplierId, businessId) => {
+        const request = new sql.Request();
+        request.input("SupplierID", sql.Int, supplierId);
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT p.ProductID, p.ProductName, p.SKU, p.UnitOfMeasure,
+                   p.SellingPrice, c.CategoryName
+            FROM Product p
+            JOIN Category c          ON p.CategoryID  = c.CategoryID
+            JOIN Product_Supplier ps ON p.ProductID   = ps.ProductID
+            WHERE ps.SupplierID = @SupplierID AND p.BusinessID = @BusinessID AND p.IsActive = 1
+            ORDER BY p.ProductName
+        `);
+        return result.recordset;
+    },
 
-        // Get product by ID (validate it belongs to this business)
-        getProductById: async (productId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM Product WHERE ProductID = ? AND IsActive = TRUE`,
-                [productId],
-            );
-            return rows[0];
-        },
+    isProductLinkedToSupplier: async (productId, supplierId) => {
+        const request = new sql.Request();
+        request.input("ProductID", sql.Int, productId);
+        request.input("SupplierID", sql.Int, supplierId);
+        const result = await request.query(
+            "SELECT TOP 1 1 AS Found FROM Product_Supplier WHERE ProductID = @ProductID AND SupplierID = @SupplierID"
+        );
+        return result.recordset.length > 0;
+    },
 
-        // Get all POs for a business with summary info
-        getPOsByBusiness: async (businessId) => {
-            const [rows] = await db.execute(
-                `SELECT po.POID, po.OrderDate, po.Status,
-                        s.SupplierName,
-                        w.WarehouseName,
-                        u.FullName AS CreatedByName,
-                        COUNT(poi.POItemID)            AS ItemCount,
-                        COALESCE(SUM(poi.TotalCost), 0) AS TotalValue
-                FROM PurchaseOrder po
-                JOIN Supplier  s   ON po.SupplierID  = s.SupplierID
-                JOIN Warehouse w   ON po.WarehouseID = w.WarehouseID
-                JOIN Users     u   ON po.CreatedBy   = u.UserID
-                LEFT JOIN PurchaseOrderItem poi ON po.POID = poi.POID
-                WHERE s.BusinessID = ?
-                GROUP BY po.POID, po.OrderDate, po.Status,
-                         s.SupplierName, w.WarehouseName, u.FullName
-                ORDER BY po.OrderDate DESC`,
-                [businessId],
-            );
-            return rows;
-        },
+    getProductById: async (productId) => {
+        const request = new sql.Request();
+        request.input("ProductID", sql.Int, productId);
+        const result = await request.query(
+            "SELECT * FROM Product WHERE ProductID = @ProductID AND IsActive = 1"
+        );
+        return result.recordset[0];
+    },
 
-        // Get a single PO with full details
-        getPOById: async (poId) => {
-            const [rows] = await db.execute(
-                `SELECT po.*,
-                        s.SupplierName, s.BusinessID,
-                        w.WarehouseName,
-                        u.FullName AS CreatedByName
-                FROM PurchaseOrder po
-                JOIN Supplier  s ON po.SupplierID  = s.SupplierID
-                JOIN Warehouse w ON po.WarehouseID = w.WarehouseID
-                JOIN Users     u ON po.CreatedBy   = u.UserID
-                WHERE po.POID = ?`,
-                [poId],
-            );
-            return rows[0];
-        },
+    getPOsByBusiness: async (businessId) => {
+        const request = new sql.Request();
+        request.input("BusinessID", sql.Int, businessId);
+        const result = await request.query(`
+            SELECT po.POID, po.OrderDate, po.Status,
+                   s.SupplierName, w.WarehouseName,
+                   u.FullName AS CreatedByName,
+                   COUNT(poi.POItemID)             AS ItemCount,
+                   COALESCE(SUM(poi.TotalCost), 0) AS TotalValue
+            FROM PurchaseOrder po
+            JOIN Supplier  s   ON po.SupplierID  = s.SupplierID
+            JOIN Warehouse w   ON po.WarehouseID = w.WarehouseID
+            JOIN Users     u   ON po.CreatedBy   = u.UserID
+            LEFT JOIN PurchaseOrderItem poi ON po.POID = poi.POID
+            WHERE s.BusinessID = @BusinessID
+            GROUP BY po.POID, po.OrderDate, po.Status,
+                     s.SupplierName, w.WarehouseName, u.FullName
+            ORDER BY po.OrderDate DESC
+        `);
+        return result.recordset;
+    },
 
-        // Get all line items for a PO
-        getPOItems: async (poId) => {
-            const [rows] = await db.execute(
-                `SELECT poi.POItemID, poi.ProductID, poi.Quantity,
-                        poi.UnitCost, poi.TotalCost,
-                        p.ProductName, p.SKU, p.UnitOfMeasure
-                FROM PurchaseOrderItem poi
-                JOIN Product p ON poi.ProductID = p.ProductID
-                WHERE poi.POID = ?
-                ORDER BY p.ProductName`,
-                [poId],
-            );
-            return rows;
-        },
+    getPOById: async (poId) => {
+        const request = new sql.Request();
+        request.input("POID", sql.Int, poId);
+        const result = await request.query(`
+            SELECT po.*,
+                   s.SupplierName, s.BusinessID,
+                   w.WarehouseName,
+                   u.FullName AS CreatedByName
+            FROM PurchaseOrder po
+            JOIN Supplier  s ON po.SupplierID  = s.SupplierID
+            JOIN Warehouse w ON po.WarehouseID = w.WarehouseID
+            JOIN Users     u ON po.CreatedBy   = u.UserID
+            WHERE po.POID = @POID
+        `);
+        return result.recordset[0];
+    },
 
-        // Get a single line item by ID
-        getPOItemById: async (itemId) => {
-            const [rows] = await db.execute(
-                `SELECT * FROM PurchaseOrderItem WHERE POItemID = ?`,
-                [itemId],
-            );
-            return rows[0];
-        },
+    getPOItems: async (poId) => {
+        const request = new sql.Request();
+        request.input("POID", sql.Int, poId);
+        const result = await request.query(`
+            SELECT poi.POItemID, poi.ProductID, poi.Quantity,
+                   poi.UnitCost, poi.TotalCost,
+                   p.ProductName, p.SKU, p.UnitOfMeasure
+            FROM PurchaseOrderItem poi
+            JOIN Product p ON poi.ProductID = p.ProductID
+            WHERE poi.POID = @POID
+            ORDER BY p.ProductName
+        `);
+        return result.recordset;
+    },
 
-        // Check if a product already exists as a line item in this PO
-        isPOItemDuplicate: async (poId, productId) => {
-            const [rows] = await db.execute(
-                `SELECT 1 FROM PurchaseOrderItem
-                WHERE POID = ? AND ProductID = ? LIMIT 1`,
-                [poId, productId],
-            );
-            return rows.length > 0;
-        },
+    getPOItemById: async (itemId) => {
+        const request = new sql.Request();
+        request.input("POItemID", sql.Int, itemId);
+        const result = await request.query(
+            "SELECT * FROM PurchaseOrderItem WHERE POItemID = @POItemID"
+        );
+        return result.recordset[0];
+    },
 
-        // Create a new purchase order
-        createPO: async (supplierId, warehouseId, createdBy) => {
-            const [result] = await db.execute(
-                `INSERT INTO PurchaseOrder (SupplierID, WarehouseID, CreatedBy)
-                VALUES (?, ?, ?)`,
-                [supplierId, warehouseId, createdBy],
-            );
-            return result.insertId;
-        },
+    isPOItemDuplicate: async (poId, productId) => {
+        const request = new sql.Request();
+        request.input("POID", sql.Int, poId);
+        request.input("ProductID", sql.Int, productId);
+        const result = await request.query(
+            "SELECT TOP 1 1 AS Found FROM PurchaseOrderItem WHERE POID = @POID AND ProductID = @ProductID"
+        );
+        return result.recordset.length > 0;
+    },
 
-        // Add a line item to a PO
-        addPOItem: async (poId, productId, quantity, unitCost) => {
-            const [result] = await db.execute(
-                `INSERT INTO PurchaseOrderItem (POID, ProductID, Quantity, UnitCost)
-                VALUES (?, ?, ?, ?)`,
-                [poId, productId, quantity, unitCost],
-            );
-            return result.insertId;
-        },
+    createPO: async (supplierId, warehouseId, createdBy) => {
+        const request = new sql.Request();
+        request.input("SupplierID", sql.Int, supplierId);
+        request.input("WarehouseID", sql.Int, warehouseId);
+        request.input("CreatedBy", sql.Int, createdBy);
+        const result = await request.query(`
+            INSERT INTO PurchaseOrder (SupplierID, WarehouseID, CreatedBy)
+            OUTPUT INSERTED.POID
+            VALUES (@SupplierID, @WarehouseID, @CreatedBy)
+        `);
+        return result.recordset[0].POID;
+    },
 
-        // Update a line item's quantity and unit cost
-        updatePOItem: async (itemId, quantity, unitCost) => {
-            await db.execute(
-                `UPDATE PurchaseOrderItem
-                SET Quantity = ?, UnitCost = ?
-                WHERE POItemID = ?`,
-                [quantity, unitCost, itemId],
-            );
-        },
+    addPOItem: async (poId, productId, quantity, unitCost) => {
+        const request = new sql.Request();
+        request.input("POID", sql.Int, poId);
+        request.input("ProductID", sql.Int, productId);
+        request.input("Quantity", sql.Int, quantity);
+        request.input("UnitCost", sql.Decimal(10, 2), unitCost);
+        const result = await request.query(`
+            INSERT INTO PurchaseOrderItem (POID, ProductID, Quantity, UnitCost)
+            OUTPUT INSERTED.POItemID
+            VALUES (@POID, @ProductID, @Quantity, @UnitCost)
+        `);
+        return result.recordset[0].POItemID;
+    },
 
-        // Remove a line item from a PO
-        deletePOItem: async (itemId) => {
-            await db.execute(
-                `DELETE FROM PurchaseOrderItem WHERE POItemID = ?`,
-                [itemId],
-            );
-        },
+    updatePOItem: async (itemId, quantity, unitCost) => {
+        const request = new sql.Request();
+        request.input("POItemID", sql.Int, itemId);
+        request.input("Quantity", sql.Int, quantity);
+        request.input("UnitCost", sql.Decimal(10, 2), unitCost);
+        await request.query(`
+            UPDATE PurchaseOrderItem
+            SET Quantity = @Quantity, UnitCost = @UnitCost
+            WHERE POItemID = @POItemID
+        `);
+    },
 
-        // Update PO status
-        updatePOStatus: async (poId, status) => {
-            await db.execute(
-                `UPDATE PurchaseOrder SET Status = ? WHERE POID = ?`,
-                [status, poId],
-            );
-        },
+    deletePOItem: async (itemId) => {
+        const request = new sql.Request();
+        request.input("POItemID", sql.Int, itemId);
+        await request.query("DELETE FROM PurchaseOrderItem WHERE POItemID = @POItemID");
+    },
 
-        // Upsert inventory — add quantity if record exists, create if not
-        upsertInventory: async (warehouseId, productId, quantity) => {
-            await db.execute(
-                `INSERT INTO Inventory (WarehouseID, ProductID, Quantity, LowStockThreshold)
-                VALUES (?, ?, ?, 10)
-                ON DUPLICATE KEY UPDATE Quantity = Quantity + VALUES(Quantity)`,
-                [warehouseId, productId, quantity],
-            );
-        },
-    };
+    updatePOStatus: async (poId, status) => {
+        const request = new sql.Request();
+        request.input("POID", sql.Int, poId);
+        request.input("Status", sql.VarChar(20), status);
+        await request.query(
+            "UPDATE PurchaseOrder SET Status = @Status WHERE POID = @POID"
+        );
+    },
+
+    upsertInventory: async (warehouseId, productId, quantity) => {
+        const request = new sql.Request();
+        request.input("WarehouseID", sql.Int, warehouseId);
+        request.input("ProductID", sql.Int, productId);
+        request.input("Quantity", sql.Int, quantity);
+        await request.query(`
+            MERGE Inventory AS target
+            USING (SELECT @WarehouseID AS WarehouseID, @ProductID AS ProductID, @Quantity AS Quantity) AS source
+            ON target.WarehouseID = source.WarehouseID AND target.ProductID = source.ProductID
+            WHEN MATCHED THEN
+                UPDATE SET target.Quantity = target.Quantity + source.Quantity
+            WHEN NOT MATCHED THEN
+                INSERT (WarehouseID, ProductID, Quantity, LowStockThreshold)
+                VALUES (source.WarehouseID, source.ProductID, source.Quantity, 10);
+        `);
+    },
 };
 
 export default purchaseOrderQueries;

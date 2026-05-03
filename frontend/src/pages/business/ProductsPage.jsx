@@ -189,6 +189,8 @@ export default function ProductsPage() {
     const { products, loading: pLoading } = useSelector((s) => s.product);
     const { categories, loading: cLoading } = useSelector((s) => s.category);
     const { suppliers } = useSelector((s) => s.supplier);
+    const { currentRole } = useSelector((s) => s.business);
+    const canManage = currentRole === "Owner" || currentRole === "Manager";
 
     const [productSheetOpen, setProductSheetOpen] = useState(false);
     const [editProduct, setEditProduct] = useState(null);
@@ -309,9 +311,11 @@ export default function ProductsPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Button onClick={() => setProductSheetOpen(true)} className="shrink-0">
-                            <Plus className="size-4 mr-1.5" /> Add Product
-                        </Button>
+                        {canManage && (
+                            <Button onClick={() => setProductSheetOpen(true)} className="shrink-0">
+                                <Plus className="size-4 mr-1.5" /> Add Product
+                            </Button>
+                        )}
                     </div>
 
                     <div className="rounded-lg border border-border overflow-hidden">
@@ -352,16 +356,18 @@ export default function ProductsPage() {
                                             <TableCell className="text-muted-foreground text-sm">{p.UnitOfMeasure}</TableCell>
                                             <TableCell className="text-right font-medium">${Number(p.SellingPrice).toFixed(2)}</TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-1">
-                                                    <Button variant="ghost" size="icon" className="size-7"
-                                                        onClick={() => setEditProduct({ ProductID: p.ProductID, productName: p.ProductName, sku: p.SKU, CategoryID: p.CategoryID, unitOfMeasure: p.UnitOfMeasure, SellingPrice: p.SellingPrice })}>
-                                                        <Pencil className="size-3.5" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive"
-                                                        onClick={() => setDeleteProduct(p)}>
-                                                        <Trash2 className="size-3.5" />
-                                                    </Button>
-                                                </div>
+                                                {canManage && (
+                                                    <div className="flex items-center gap-1">
+                                                        <Button variant="ghost" size="icon" className="size-7"
+                                                            onClick={() => setEditProduct({ ProductID: p.ProductID, productName: p.ProductName, sku: p.SKU, CategoryID: p.CategoryID, unitOfMeasure: p.UnitOfMeasure, SellingPrice: p.SellingPrice })}>
+                                                            <Pencil className="size-3.5" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive"
+                                                            onClick={() => setDeleteProduct(p)}>
+                                                            <Trash2 className="size-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -375,9 +381,11 @@ export default function ProductsPage() {
                 <TabsContent value="categories" className="space-y-4 mt-4">
                     <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">{categories.length} categories</p>
-                        <Button onClick={() => setCatDialogOpen(true)}>
-                            <Plus className="size-4 mr-1.5" /> New Category
-                        </Button>
+                        {canManage && (
+                            <Button onClick={() => setCatDialogOpen(true)}>
+                                <Plus className="size-4 mr-1.5" /> New Category
+                            </Button>
+                        )}
                     </div>
 
                     <div className="rounded-lg border border-border overflow-hidden">
@@ -408,14 +416,16 @@ export default function ProductsPage() {
                                                     <Badge variant="secondary" className="text-xs">{count} product{count !== 1 ? "s" : ""}</Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-1">
-                                                        <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditCat(c)}>
-                                                            <Pencil className="size-3.5" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive" onClick={() => setDeleteCat(c)}>
-                                                            <Trash2 className="size-3.5" />
-                                                        </Button>
-                                                    </div>
+                                                    {canManage && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditCat(c)}>
+                                                                <Pencil className="size-3.5" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive" onClick={() => setDeleteCat(c)}>
+                                                                <Trash2 className="size-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         );

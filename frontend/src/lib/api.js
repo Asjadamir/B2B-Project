@@ -10,8 +10,10 @@ async function request(method, path, body) {
         credentials: "include",
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok){
-        throw new Error(data.message || `Request failed (${res.status})`);
+    if (!res.ok) {
+        const err = new Error(data.message || `Request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
     }
     return data;
 }
@@ -20,6 +22,7 @@ async function request(method, path, body) {
 export const signup = (body) => request("POST", "/auth/signup", body);
 export const login = (body) => request("POST", "/auth/login", body);
 export const logout = () => request("POST", "/auth/logout");
+export const getMe = () => request("GET", "/auth/me");
 export const forgotPassword = (body) =>
     request("POST", "/auth/forgot-password", body);
 export const resetPassword = (token, body) =>
@@ -39,6 +42,10 @@ export const deleteBusiness = (id) => request("DELETE", `/business/${id}`);
 export const getSuppliers = (businessId) =>
     request("GET", `/supplier?businessId=${businessId}`);
 export const getSupplierById = (id) => request("GET", `/supplier/${id}`);
+export const getSupplierLinkedProducts = (supplierId, businessId) =>
+    request("GET", `/supplier/${supplierId}/products?businessId=${businessId}`);
+export const getSupplierUnlinkedProducts = (supplierId, businessId) =>
+    request("GET", `/supplier/${supplierId}/unlinked-products?businessId=${businessId}`);
 export const createSupplier = (body) => request("POST", "/supplier", body);
 export const updateSupplier = (id, body) =>
     request("PUT", `/supplier/${id}`, body);
@@ -66,6 +73,8 @@ export const updateCategory = (id, body) =>
 export const deleteCategory = (id) => request("DELETE", `/category/${id}`);
 
 // Employee
+export const getMyRole = (businessId) =>
+    request("GET", `/employee/my-role?businessId=${businessId}`);
 export const getEmployees = (businessId) =>
     request("GET", `/employee?businessId=${businessId}`);
 export const getPendingInvites = (businessId) =>
@@ -76,6 +85,14 @@ export const updateEmployeeRole = (staffId, body) =>
     request("PATCH", `/employee/${staffId}/role`, body);
 export const removeEmployee = (staffId) =>
     request("DELETE", `/employee/${staffId}`);
+export const getInviteInfo = (token) =>
+    request("GET", `/employee/invite/${token}`);
+export const acceptInvite = (token, body) =>
+    request("POST", `/employee/invite/${token}/accept`, body);
+export const cancelInvite = (requestId) =>
+    request("DELETE", `/employee/invites/${requestId}`);
+export const leaveEmployee = (body) =>
+    request("POST", "/employee/leave", body);
 
 // Warehouse
 export const getWarehouses = (businessId) =>

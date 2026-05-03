@@ -1,8 +1,10 @@
 import "./App.css";
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { checkAuthThunk } from "@/store/authSlice";
 
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
@@ -10,6 +12,7 @@ import SignupPage from "@/pages/SignupPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import VerifyEmailPage from "@/pages/VerifyEmailPage";
+import InviteAcceptPage from "@/pages/InviteAcceptPage";
 import DashboardPage from "@/pages/DashboardPage";
 
 import BusinessLayout from "@/layouts/BusinessLayout";
@@ -26,6 +29,7 @@ import EmployeesPage from "@/pages/business/EmployeesPage";
 import WarehousesPage from "@/pages/business/WarehousesPage";
 import WarehouseDetailPage from "@/pages/business/WarehouseDetailPage";
 import AuditLogsPage from "@/pages/business/AuditLogsPage";
+import SupplierDetailPage from "@/pages/business/SupplierDetailPage";
 
 function PrivateRoute({ children }) {
     const { user } = useSelector((s) => s.auth);
@@ -38,6 +42,12 @@ function PublicRoute({ children }) {
 }
 
 export default function App() {
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+        dispatch(checkAuthThunk());
+    }, [dispatch]);
+
     return (
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             <BrowserRouter>
@@ -49,6 +59,7 @@ export default function App() {
                     <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
                     <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
                     <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+                    <Route path="/invite/:token" element={<InviteAcceptPage />} />
 
                     <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
 
@@ -59,6 +70,7 @@ export default function App() {
                         <Route index element={<Navigate to="overview" replace />} />
                         <Route path="overview" element={<OverviewPage />} />
                         <Route path="suppliers" element={<SuppliersPage />} />
+                        <Route path="suppliers/:supplierId" element={<SupplierDetailPage />} />
                         <Route path="products" element={<ProductsPage />} />
                         <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
                         <Route path="purchase-orders/new" element={<PurchaseOrderFormPage />} />

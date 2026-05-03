@@ -1,37 +1,41 @@
 import { useEffect, useState } from "react";
 import { Outlet, NavLink, useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchBusinessById } from "@/store/businessSlice";
+import { fetchBusinessById, fetchMyRoleThunk } from "@/store/businessSlice";
 import { logoutThunk } from "@/store/authSlice";
+import * as api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
     LayoutDashboard, Truck, Package, ShoppingCart, ClipboardList,
     Users, Warehouse, ScrollText, ChevronLeft, Menu, Link2,
-    LogOut, PanelLeftClose, PanelLeftOpen, ChevronDown
+    LogOut, PanelLeftClose, PanelLeftOpen, ChevronDown, DoorOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-const navItems = [
-    { label: "Overview", to: "overview", icon: LayoutDashboard },
-    { label: "Suppliers", to: "suppliers", icon: Truck },
-    { label: "Products", to: "products", icon: Package },
-    { label: "Purchase Orders", to: "purchase-orders", icon: ShoppingCart },
-    { label: "Sale Orders", to: "sale-orders", icon: ClipboardList },
-    { label: "Employees", to: "employees", icon: Users },
-    { label: "Warehouses", to: "warehouses", icon: Warehouse },
-    { label: "Audit Logs", to: "audit-logs", icon: ScrollText },
+const ALL_NAV = [
+    { label: "Overview",        to: "overview",        icon: LayoutDashboard, roles: null },
+    { label: "Suppliers",       to: "suppliers",       icon: Truck,           roles: ["Owner", "Manager", "Procurement Officer"] },
+    { label: "Products",        to: "products",        icon: Package,         roles: null },
+    { label: "Purchase Orders", to: "purchase-orders", icon: ShoppingCart,    roles: null },
+    { label: "Sale Orders",     to: "sale-orders",     icon: ClipboardList,   roles: ["Owner", "Manager", "Warehouse Staff"] },
+    { label: "Employees",       to: "employees",       icon: Users,           roles: ["Owner", "Manager"] },
+    { label: "Warehouses",      to: "warehouses",      icon: Warehouse,       roles: ["Owner", "Manager", "Warehouse Staff"] },
+    { label: "Audit Logs",      to: "audit-logs",      icon: ScrollText,      roles: ["Owner", "Manager"] },
 ];
 
-function SidebarContent({ businessId, businessName, collapsed }) {
+function SidebarContent({ businessId, businessName, collapsed, role }) {
+    const navItems = ALL_NAV.filter((item) => !item.roles || !role || item.roles.includes(role));
+
     return (
         <div className="flex flex-col h-full">
-            {/* Brand */}
             <div className={cn("flex items-center gap-2.5 px-4 py-4 border-b border-border", collapsed && "justify-center px-2")}>
                 <div className="size-7 rounded-md bg-primary flex items-center justify-center shrink-0">
                     <Link2 className="size-3.5 text-primary-foreground" />
@@ -39,7 +43,6 @@ function SidebarContent({ businessId, businessName, collapsed }) {
                 {!collapsed && <span className="font-bold text-sm truncate">CoreChain</span>}
             </div>
 
-            {/* Business name */}
             {!collapsed && businessName && (
                 <div className="px-4 py-3 border-b border-border">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Business</p>
@@ -93,13 +96,16 @@ export default function BusinessLayout() {
     const { id } = useParams();
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { currentBusiness, loading } = useSelector((s) => s.business);
+    const { currentBusiness, currentRole, loading } = useSelector((s) => s.business);
     const { user } = useSelector((s) => s.auth);
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [leaveOpen, setLeaveOpen] = useState(false);
+    const [leaveLoading, setLeaveLoading] = useState(false);
 
     useEffect(() => {
         dispatch(fetchBusinessById(id));
+        dispatch(fetchMyRoleThunk(id));
     }, [id, dispatch]);
 
     useEffect(() => {
@@ -119,7 +125,21 @@ export default function BusinessLayout() {
         navigate("/");
     }
 
-    const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : "U";
+    async function handleLeave() {
+        setLeaveLoading(true);
+        try {
+            await api.leaveEmployee({ businessId: Number(id) });
+            toast.success("You have left the business");
+            navigate("/dashboard");
+        } catch (e) {
+            toast.error(e.message);
+            setLeaveOpen(false);
+        } finally {
+            setLeaveLoading(false);
+        }
+    }
+
+    const initials = user?.userName ? user.userName.slice(0, 2).toUpperCase() : (user?.email ? user.email.slice(0, 2).toUpperCase() : "U");
     const businessName = currentBusiness?.BusinessName || "";
 
     return (
@@ -131,7 +151,7 @@ export default function BusinessLayout() {
                     collapsed ? "w-16" : "w-60"
                 )}
             >
-                <SidebarContent businessId={id} businessName={businessName} collapsed={collapsed} />
+                <SidebarContent businessId={id} businessName={businessName} collapsed={collapsed} role={currentRole} />
             </aside>
 
             {/* Main area */}
@@ -146,7 +166,7 @@ export default function BusinessLayout() {
                             </Button>
                         </SheetTrigger>
                         <SheetContent side="left" className="w-60 p-0">
-                            <SidebarContent businessId={id} businessName={businessName} collapsed={false} />
+                            <SidebarContent businessId={id} businessName={businessName} collapsed={false} role={currentRole} />
                         </SheetContent>
                     </Sheet>
 
@@ -176,12 +196,23 @@ export default function BusinessLayout() {
                                     <ChevronDown className="size-3 text-muted-foreground" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <div className="px-2 py-1.5 text-xs text-muted-foreground truncate">{user?.email}</div>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <div className="px-2 py-1.5">
+                                    <p className="text-xs font-medium truncate">{user?.userName}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                                    {currentRole && (
+                                        <p className="text-xs text-primary mt-0.5">{currentRole}</p>
+                                    )}
+                                </div>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => navigate("/dashboard")} className="gap-2">
                                     <LayoutDashboard className="size-3.5" /> All Businesses
                                 </DropdownMenuItem>
+                                {currentRole && currentRole !== "Owner" && (
+                                    <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive" onClick={() => setLeaveOpen(true)}>
+                                        <DoorOpen className="size-3.5" /> Leave Business
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive gap-2" onClick={handleLogout}>
                                     <LogOut className="size-3.5" /> Sign out
@@ -196,6 +227,24 @@ export default function BusinessLayout() {
                     <Outlet />
                 </main>
             </div>
+
+            {/* Leave business confirmation */}
+            <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Leave Business</DialogTitle>
+                        <DialogDescription>
+                            You will lose access to <span className="font-medium text-foreground">{businessName}</span> immediately. This cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setLeaveOpen(false)} disabled={leaveLoading}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleLeave} disabled={leaveLoading}>
+                            {leaveLoading ? "Leaving…" : "Leave Business"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

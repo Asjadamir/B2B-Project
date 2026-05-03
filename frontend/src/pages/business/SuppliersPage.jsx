@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -71,8 +71,12 @@ function SupplierSheet({ open, onOpenChange, initial, businessId, onSubmit, load
 
 export default function SuppliersPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const dispatch = useDispatch();
     const { suppliers, loading } = useSelector((s) => s.supplier);
+    const { currentRole } = useSelector((s) => s.business);
+    const canManage = currentRole === "Owner" || currentRole === "Manager";
+    const canAdd = canManage || currentRole === "Procurement Officer";
     const [sheetOpen, setSheetOpen] = useState(false);
     const [editTarget, setEditTarget] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -110,7 +114,7 @@ export default function SuppliersPage() {
                     <h1 className="text-xl font-bold">Suppliers</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">{suppliers.length} supplier{suppliers.length !== 1 ? "s" : ""}</p>
                 </div>
-                <Button onClick={() => setSheetOpen(true)}><Plus className="size-4 mr-1.5" /> Add Supplier</Button>
+                {canAdd && <Button onClick={() => setSheetOpen(true)}><Plus className="size-4 mr-1.5" /> Add Supplier</Button>}
             </div>
 
             {suppliers.length > 3 && (
@@ -136,14 +140,15 @@ export default function SuppliersPage() {
                             <p className="font-medium">No suppliers yet</p>
                             <p className="text-sm text-muted-foreground">Add your first supplier to start managing procurement</p>
                         </div>
-                        <Button onClick={() => setSheetOpen(true)}><Plus className="size-4 mr-1.5" /> Add first supplier</Button>
+                        {canAdd && <Button onClick={() => setSheetOpen(true)}><Plus className="size-4 mr-1.5" /> Add first supplier</Button>}
                     </CardContent>
                 </Card>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filtered.map((s) => (
-                    <Card key={s.SupplierID} className="hover:border-primary/40 transition-colors">
+                    <Card key={s.SupplierID} className="hover:border-primary/40 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/business/${id}/suppliers/${s.SupplierID}`)}>
                         <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
                                 <CardTitle className="text-base">{s.SupplierName}</CardTitle>
@@ -163,16 +168,18 @@ export default function SuppliersPage() {
                                 </div>
                             )}
                         </CardContent>
-                        <div className="px-6 pb-4 flex gap-1.5">
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs"
-                                onClick={() => setEditTarget({ SupplierID: s.SupplierID, supplierName: s.SupplierName, contactNumber: s.ContactNumber || "", email: s.Email || "", description: s.Description || "" })}>
-                                <Pencil className="size-3 mr-1" /> Edit
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                                onClick={() => setDeleteTarget(s)}>
-                                <Trash2 className="size-3 mr-1" /> Remove
-                            </Button>
-                        </div>
+                        {canManage && (
+                            <div className="px-6 pb-4 flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs"
+                                    onClick={() => setEditTarget({ SupplierID: s.SupplierID, supplierName: s.SupplierName, contactNumber: s.ContactNumber || "", email: s.Email || "", description: s.Description || "" })}>
+                                    <Pencil className="size-3 mr-1" /> Edit
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                                    onClick={() => setDeleteTarget(s)}>
+                                    <Trash2 className="size-3 mr-1" /> Remove
+                                </Button>
+                            </div>
+                        )}
                     </Card>
                 ))}
             </div>
