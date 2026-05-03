@@ -30,6 +30,7 @@ import WarehousesPage from "@/pages/business/WarehousesPage";
 import WarehouseDetailPage from "@/pages/business/WarehouseDetailPage";
 import AuditLogsPage from "@/pages/business/AuditLogsPage";
 import SupplierDetailPage from "@/pages/business/SupplierDetailPage";
+import InventoryPage from "@/pages/business/InventoryPage";
 
 function PrivateRoute({ children }) {
     const { user } = useSelector((s) => s.auth);
@@ -81,6 +82,7 @@ export default function App() {
                         <Route path="employees" element={<EmployeesPage />} />
                         <Route path="warehouses" element={<WarehousesPage />} />
                         <Route path="warehouses/:wId" element={<WarehouseDetailPage />} />
+                        <Route path="inventory" element={<InventoryPage />} />
                         <Route path="audit-logs" element={<AuditLogsPage />} />
                     </Route>
 

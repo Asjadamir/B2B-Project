@@ -23,6 +23,8 @@ import saleOrderControllers from "./modules/saleOrder/saleOrder.controller.js";
 import saleOrderRoutes from "./modules/saleOrder/saleOrder.routes.js";
 import auditLogControllers from "./modules/auditLog/auditLog.controller.js";
 import auditLogRoutes from "./modules/auditLog/auditLog.routes.js";
+import inventoryControllers from "./modules/inventory/inventory.controllers.js";
+import inventoryRoutes from "./modules/inventory/inventory.routes.js";
 
 await connectMSSQL();
 
@@ -42,6 +44,7 @@ app.use("/api/warehouse",    warehouseRoutes(warehouseControllers));
 app.use("/api/purchaseorder", purchaseOrderRoutes(purchaseOrderControllers));
 app.use("/api/saleorder",    saleOrderRoutes(saleOrderControllers));
 app.use("/api/auditlog",     auditLogRoutes(auditLogControllers));
+app.use("/api/inventory", inventoryRoutes(inventoryControllers));
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
