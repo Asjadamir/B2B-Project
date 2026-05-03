@@ -57,10 +57,10 @@ INSERT INTO Staff (UserID, BusinessID, RoleID, IsActive) VALUES
 -- ============================================================
 --  JoiningRequest
 -- ============================================================
-INSERT INTO JoiningRequest (UserID, BusinessID, Status, ValidTill) VALUES
-(5, 1, 'Pending',  '2025-06-30'),
-(7, 1, 'Rejected', '2025-05-01'),
-(3, 2, 'Approved', '2025-07-15');
+INSERT INTO JoiningRequest (Email, BusinessID, RoleID, InvitedBy, Token, Status, ValidTill) VALUES
+('john.doe@example.com',  1, 3, 1, 'seed-token-abc123', 'Pending',  '2026-05-01 00:00:00'),
+('jane.smith@example.com',2, 4, 4, 'seed-token-def456', 'Accepted', '2026-04-20 00:00:00'),
+('mark.ali@example.com',  1, 2, 1, 'seed-token-ghi789', 'Expired',  '2026-03-01 00:00:00');
 
 -- ============================================================
 --  Warehouse
@@ -84,14 +84,14 @@ INSERT INTO Staff_Warehouse (StaffID, WarehouseID, RoleID) VALUES
 -- ============================================================
 --  Category
 -- ============================================================
-INSERT INTO Category (CategoryName, ParentCategoryID) VALUES
-('Electronics',    NULL),  -- CategoryID 1
-('Laptops',        1),     -- CategoryID 2
-('Smartphones',    1),     -- CategoryID 3
-('FMCG',           NULL),  -- CategoryID 4
-('Beverages',      4),     -- CategoryID 5
-('Construction',   NULL),  -- CategoryID 6
-('Cement & Steel', 6);     -- CategoryID 7
+INSERT INTO Category (CategoryName, BusinessID) VALUES
+('Electronics',    1),   -- CategoryID 1  → TechMart
+('Laptops',        1),   -- CategoryID 2  → TechMart
+('Smartphones',    1),   -- CategoryID 3  → TechMart
+('FMCG',           2),   -- CategoryID 4  → SwiftGoods
+('Beverages',      2),   -- CategoryID 5  → SwiftGoods
+('Construction',   3),   -- CategoryID 6  → BuildCore
+('Cement & Steel', 3);   -- CategoryID 7  → BuildCore
 
 -- ============================================================
 --  Product
@@ -190,8 +190,42 @@ INSERT INTO ProductReturn (SOID, ProductID, Quantity, Reason, Status) VALUES
 -- ============================================================
 --  AuditLog
 -- ============================================================
-INSERT INTO AuditLog (TableName, ActionType, RecordID, ChangedBy, LogMessage) VALUES
-('SaleOrder',    'INSERT', 1, 2, 'New sale order created for Alpha Tech Store'),
-('Inventory',    'UPDATE', 1, 2, 'Stock reduced after SO-1 fulfillment'),
-('PurchaseOrder','UPDATE', 4, 2, 'PO-4 cancelled due to supplier delay'),
-('Staff',        'UPDATE', 7, 1, 'Usman Tariq set to inactive');
+INSERT INTO AuditLog (BusinessID, ActorID, Action, EntityType, EntityID, Details) VALUES
+-- Business setup
+(1, 1, 'CREATE_BUSINESS',  'Business',      1,    'Created business "TechMart Pvt Ltd".'),
+(2, 4, 'CREATE_BUSINESS',  'Business',      2,    'Created business "SwiftGoods Co.".'),
+(3, 6, 'CREATE_BUSINESS',  'Business',      3,    'Created business "BuildCore Supplies".'),
+
+-- Suppliers
+(1, 1, 'CREATE_SUPPLIER',  'Supplier',      1,    'Created supplier "Tech Distributors PK".'),
+(1, 1, 'CREATE_SUPPLIER',  'Supplier',      2,    'Created supplier "Mobile World Pvt".'),
+(2, 4, 'CREATE_SUPPLIER',  'Supplier',      3,    'Created supplier "FoodLine Supplies".'),
+
+-- Warehouses
+(1, 1, 'CREATE_WAREHOUSE', 'Warehouse',     1,    'Created warehouse "TechMart Lahore Hub".'),
+(1, 1, 'CREATE_WAREHOUSE', 'Warehouse',     2,    'Created warehouse "TechMart Karachi Store".'),
+(2, 4, 'CREATE_WAREHOUSE', 'Warehouse',     3,    'Created warehouse "SwiftGoods Central".'),
+
+-- Products
+(1, 1, 'CREATE_PRODUCT',   'Product',       1,    'Created product "Dell Laptop 15" (SKU: SKU-LAP-001).'),
+(1, 1, 'CREATE_PRODUCT',   'Product',       2,    'Created product "Samsung Galaxy S24" (SKU: SKU-PHN-001).'),
+(1, 1, 'LINK_SUPPLIER',    'Product',       1,    'Linked supplier "Tech Distributors PK" to product "Dell Laptop 15".'),
+(1, 1, 'LINK_SUPPLIER',    'Product',       2,    'Linked supplier "Mobile World Pvt" to product "Samsung Galaxy S24".'),
+
+-- Staff invitations & management
+(1, 1, 'SEND_INVITE',      'Employee',      NULL, 'Invited john.doe@example.com as Warehouse Staff.'),
+(1, 1, 'SEND_INVITE',      'Employee',      NULL, 'Invited mark.ali@example.com as Manager.'),
+(2, 4, 'EXPEL_EMPLOYEE',   'Employee',      7,    'Expelled staff #7 (Warehouse Staff) from the business.'),
+
+-- Purchase orders
+(1, 2, 'CREATE_PO',        'PurchaseOrder', 1,    'Created purchase order from supplier "Tech Distributors PK" to warehouse "TechMart Lahore Hub" with 2 item(s).'),
+(1, 2, 'RECEIVE_PO',       'PurchaseOrder', 1,    'Marked purchase order #1 as received. Inventory updated with 2 item(s).'),
+(1, 2, 'CREATE_PO',        'PurchaseOrder', 2,    'Created purchase order from supplier "Mobile World Pvt" to warehouse "TechMart Lahore Hub" with 1 item(s).'),
+(1, 2, 'RECEIVE_PO',       'PurchaseOrder', 2,    'Marked purchase order #2 as received. Inventory updated with 1 item(s).'),
+(1, 2, 'CANCEL_PO',        'PurchaseOrder', 4,    'Cancelled purchase order #4.'),
+
+-- Sale orders
+(1, 2, 'CREATE_SO',        'SaleOrder',     1,    'Created sale order for "Alpha Tech Store" from warehouse "TechMart Lahore Hub" with 2 item(s).'),
+(1, 2, 'FULFILL_SO',       'SaleOrder',     1,    'Fulfilled sale order #1 for "Alpha Tech Store" from warehouse #1. Inventory decremented for 2 item(s).'),
+(1, 3, 'CREATE_SO',        'SaleOrder',     2,    'Created sale order for "Beta Electronics" from warehouse "TechMart Lahore Hub" with 1 item(s).'),
+(1, 3, 'FULFILL_SO',       'SaleOrder',     2,    'Fulfilled sale order #2 for "Beta Electronics" from warehouse #1. Inventory decremented for 1 item(s).');

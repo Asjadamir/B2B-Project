@@ -1,9 +1,8 @@
 import app from "./src/app.js";
 import http from "http";
-import env from "./src/config/env.js"
+import env from "./src/config/env.js";
 
 const startServer = () => {
-
     const server = http.createServer(app);
 
     server.listen(env.PORT, () => {

@@ -1,113 +1,103 @@
-const authQueries = (db) => {
-    return {
-        // Find a user by email
-        findUserByEmail: async (email) => {
-            const [rows] = await db.execute(
-                "SELECT * FROM Users WHERE Email = ?",
-                [email],
-            );
-            return rows[0];
-        },
+import sql from "mssql";
 
-        // Find a user by ID
-        findUserById: async (userId) => {
-            const [rows] = await db.execute(
-                "SELECT * FROM Users WHERE UserID = ?",
-                [userId],
-            );
-            return rows[0];
-        },
+const authQueries = {
+    findUserByEmail: async (email) => {
+        const request = new sql.Request();
+        request.input("Email", sql.VarChar(255), email);
+        const result = await request.execute("sp_GetUserByEmail");
+        return result.recordset[0];
+    },
 
-        // Update name and password for an unverified user re-signing up
-        updateUnverifiedUser: async (userId, fullName, passwordHash) => {
-            await db.execute(
-                "UPDATE Users SET FullName = ?, PasswordHash = ? WHERE UserID = ?",
-                [fullName, passwordHash, userId],
-            );
-        },
+    findUserById: async (userId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        const result = await request.execute("sp_GetUserById");
+        return result.recordset[0];
+    },
 
-        // Insert a new user
-        createUser: async (fullName, email, passwordHash) => {
-            const [result] = await db.execute(
-                `INSERT INTO Users (FullName, Email, PasswordHash, IsVerified)
-                VALUES (?, ?, ?, FALSE)`,
-                [fullName, email, passwordHash],
-            );
-            return result.insertId;
-        },
+    createUser: async (fullName, email, passwordHash) => {
+        const request = new sql.Request();
+        request.input("FullName", sql.NVarChar(255), fullName);
+        request.input("Email", sql.VarChar(255), email);
+        request.input("PasswordHash", sql.VarChar(255), passwordHash);
+        const result = await request.execute("sp_CreateUser");
+        return result.recordset[0].UserID;
+    },
 
-        // Save a verification token into VerifyTokens table
-        saveVerifyToken: async (userId, token) => {
-            await db.execute(
-                `INSERT INTO VerifyTokens (UserID, Token, ValidTill)
-                VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
-                [userId, token],
-            );
-        },
+    updateUnverifiedUser: async (userId, fullName, passwordHash) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("FullName", sql.NVarChar(255), fullName);
+        request.input("PasswordHash", sql.VarChar(255), passwordHash);
+        await request.query(
+            "UPDATE Users SET FullName = @FullName, PasswordHash = @PasswordHash WHERE UserID = @UserID",
+        );
+    },
 
-        // Find a verify token and join the user row in one query
-        findVerifyToken: async (token) => {
-            const [rows] = await db.execute(
-                `SELECT u.UserID, u.Email, u.FullName, vt.ValidTill
-                 FROM VerifyTokens vt
-                 JOIN Users u ON u.UserID = vt.UserID
-                 WHERE vt.Token = ?`,
-                [token],
-            );
-            return rows[0];
-        },
+    createVerifyToken: async (userID, token, validTill) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userID);
+        request.input("Token", sql.VarChar(64), token);
+        request.input("ValidTill", sql.DateTime, validTill);
+        await request.execute("sp_CreateVerifyToken");
+    },
 
-        // Delete token after it has been used
-        deleteVerifyToken: async (token) => {
-            await db.execute("DELETE FROM VerifyTokens WHERE Token = ?", [
-                token,
-            ]);
-        },
+    getVerifyToken: async (token) => {
+        const request = new sql.Request();
+        request.input("Token", sql.VarChar(64), token);
+        const result = await request.execute("sp_GetVerifyToken");
+        return result.recordset[0];
+    },
 
-        // Delete all verify tokens for a user (to refresh with a new one)
-        deleteVerifyTokensByUserId: async (userId) => {
-            await db.execute("DELETE FROM VerifyTokens WHERE UserID = ?", [userId]);
-        },
+    deleteVerifyToken: async (token) => {
+        const request = new sql.Request();
+        request.input("Token", sql.VarChar(64), token);
+        await request.query("DELETE FROM VerifyTokens WHERE Token = @Token");
+    },
 
-        // Mark user as verified
-        markUserVerified: async (userId) => {
-            await db.execute(
-                "UPDATE Users SET IsVerified = TRUE WHERE UserID = ?",
-                [userId],
-            );
-        },
+    deleteVerifyTokensByUserId: async (userID) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userID);
+        await request.execute("sp_DeleteVerifyTokenByUserId");
+    },
 
-        // Save a password reset token (1 hour expiry)
-        saveResetToken: async (userId, token) => {
-            await db.execute(
-                `INSERT INTO ResetTokens (UserID, Token, ValidTill)
-                VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
-                [userId, token],
-            );
-        },
+    markUserVerified: async (userId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        await request.query(
+            "UPDATE Users SET IsVerified = 1 WHERE UserID = @UserID",
+        );
+    },
 
-        // Find a reset token record
-        findResetToken: async (token) => {
-            const [rows] = await db.execute(
-                "SELECT * FROM ResetTokens WHERE Token = ?",
-                [token],
-            );
-            return rows[0];
-        },
+    saveResetToken: async (userId, token, validTill) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("Token", sql.VarChar(64), token);
+        request.input("ValidTill", sql.DateTime, validTill);
+        await request.execute("sp_CreateResetToken");
+    },
 
-        // Delete a reset token after use or expiry
-        deleteResetToken: async (token) => {
-            await db.execute("DELETE FROM ResetTokens WHERE Token = ?", [token]);
-        },
+    getResetToken: async (token) => {
+        const request = new sql.Request();
+        request.input("Token", sql.VarChar(64), token);
+        const result = await request.execute("sp_GetResetToken");
+        return result.recordset[0];
+    },
 
-        // Update a user's password
-        updatePassword: async (userId, passwordHash) => {
-            await db.execute(
-                "UPDATE Users SET PasswordHash = ? WHERE UserID = ?",
-                [passwordHash, userId],
-            );
-        },
-    };
+    deleteResetToken: async (token) => {
+        const request = new sql.Request();
+        request.input("Token", sql.VarChar(64), token);
+        await request.query("DELETE FROM ResetTokens WHERE Token = @Token");
+    },
+
+    updatePassword: async (userId, passwordHash) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        request.input("PasswordHash", sql.VarChar(255), passwordHash);
+        await request.query(
+            "UPDATE Users SET PasswordHash = @PasswordHash WHERE UserID = @UserID",
+        );
+    },
 };
 
 export default authQueries;
