@@ -15,7 +15,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import {
     LayoutDashboard, Truck, Package, ShoppingCart, ClipboardList,
     Users, Warehouse, ScrollText, ChevronLeft, Menu, Link2,
-    LogOut, PanelLeftClose, PanelLeftOpen, ChevronDown, DoorOpen
+    LogOut, PanelLeftClose, PanelLeftOpen, ChevronDown, DoorOpen, Boxes
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ const ALL_NAV = [
     { label: "Products",        to: "products",        icon: Package,         roles: null },
     { label: "Purchase Orders", to: "purchase-orders", icon: ShoppingCart,    roles: null },
     { label: "Sale Orders",     to: "sale-orders",     icon: ClipboardList,   roles: ["Owner", "Manager", "Warehouse Staff"] },
+    { label: "Inventory",       to: "inventory",       icon: Boxes,           roles: null },
     { label: "Employees",       to: "employees",       icon: Users,           roles: ["Owner", "Manager"] },
     { label: "Warehouses",      to: "warehouses",      icon: Warehouse,       roles: ["Owner", "Manager", "Warehouse Staff"] },
     { label: "Audit Logs",      to: "audit-logs",      icon: ScrollText,      roles: ["Owner", "Manager"] },

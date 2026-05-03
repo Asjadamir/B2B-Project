@@ -139,6 +139,16 @@ export const getWarehouseProducts = (warehouseId, businessId) =>
         `/saleorder/warehouse/${warehouseId}/products?businessId=${businessId}`,
     );
 
+
+// Inventory
+export const getInventory = (businessId) =>
+    request("GET", `/inventory?businessId=${businessId}`);
+export const adjustInventory = (body) =>
+    request("POST", "/inventory/adjust", body);
+export const transferInventory = (body) =>
+    request("POST", "/inventory/transfer", body);
+
+
 // Audit Log
 export const getAuditLogs = (params) => {
     const q = new URLSearchParams(params).toString();
