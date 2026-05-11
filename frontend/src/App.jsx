@@ -32,13 +32,23 @@ import AuditLogsPage from "@/pages/business/AuditLogsPage";
 import SupplierDetailPage from "@/pages/business/SupplierDetailPage";
 import InventoryPage from "@/pages/business/InventoryPage";
 
+function AppLoader() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="size-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+    );
+}
+
 function PrivateRoute({ children }) {
-    const { user } = useSelector((s) => s.auth);
+    const { user, initializing } = useSelector((s) => s.auth);
+    if (initializing) return <AppLoader />;
     return user ? children : <Navigate to="/login" replace />;
 }
 
 function PublicRoute({ children }) {
-    const { user } = useSelector((s) => s.auth);
+    const { user, initializing } = useSelector((s) => s.auth);
+    if (initializing) return <AppLoader />;
     return user ? <Navigate to="/dashboard" replace /> : children;
 }
 

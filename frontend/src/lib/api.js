@@ -1,7 +1,6 @@
 const BASE = "http://localhost:5000/api";
 
 async function request(method, path, body) {
-    console.log(body);
     const res = await fetch(BASE + path, {
         method,
         headers: body ? { "Content-Type": "application/json" } : {},

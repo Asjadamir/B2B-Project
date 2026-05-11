@@ -57,12 +57,11 @@ export const checkAuthThunk = createAsyncThunk("auth/check", async (_, { rejectW
     }
 });
 
-const stored = localStorage.getItem("user");
-
 const authSlice = createSlice({
     name: "auth",
     initialState: {
-        user: stored ? JSON.parse(stored) : null,
+        user: null,
+        initializing: true,
         loading: false,
         error: null,
         successMessage: null,
@@ -71,10 +70,6 @@ const authSlice = createSlice({
         clearAuthStatus(state) {
             state.error = null;
             state.successMessage = null;
-        },
-        setUser(state, action) {
-            state.user = action.payload;
-            localStorage.setItem("user", JSON.stringify(action.payload));
         },
     },
     extraReducers: (builder) => {
@@ -85,9 +80,7 @@ const authSlice = createSlice({
             .addCase(loginThunk.pending, pending)
             .addCase(loginThunk.fulfilled, (state, action) => {
                 state.loading = false;
-                const userData = action.payload.data;
-                state.user = userData;
-                localStorage.setItem("user", JSON.stringify(userData));
+                state.user = action.payload.data;
             })
             .addCase(loginThunk.rejected, rejected)
 
@@ -101,7 +94,6 @@ const authSlice = createSlice({
             .addCase(logoutThunk.fulfilled, (state) => {
                 state.user = null;
                 state.loading = false;
-                localStorage.removeItem("user");
             })
 
             .addCase(forgotPasswordThunk.pending, pending)
@@ -122,25 +114,20 @@ const authSlice = createSlice({
             .addCase(verifyEmailThunk.fulfilled, (state, action) => {
                 state.loading = false;
                 state.successMessage = action.payload.message;
-                const userData = action.payload.data;
-                state.user = userData;
-                localStorage.setItem("user", JSON.stringify(userData));
+                state.user = action.payload.data;
             })
             .addCase(verifyEmailThunk.rejected, rejected)
 
             .addCase(checkAuthThunk.fulfilled, (state, action) => {
-                const userData = action.payload.data;
-                state.user = userData;
-                localStorage.setItem("user", JSON.stringify(userData));
+                state.user = action.payload.data;
+                state.initializing = false;
             })
-            .addCase(checkAuthThunk.rejected, (state, action) => {
-                if (action.payload === true) {
-                    state.user = null;
-                    localStorage.removeItem("user");
-                }
+            .addCase(checkAuthThunk.rejected, (state) => {
+                state.user = null;
+                state.initializing = false;
             });
     },
 });
 
-export const { clearAuthStatus, setUser } = authSlice.actions;
+export const { clearAuthStatus } = authSlice.actions;
 export default authSlice.reducer;
