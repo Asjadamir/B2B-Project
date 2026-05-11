@@ -1,7 +1,6 @@
 const BASE = "http://localhost:5000/api";
 
 async function request(method, path, body) {
-
     console.log(body);
     const res = await fetch(BASE + path, {
         method,
@@ -45,7 +44,10 @@ export const getSupplierById = (id) => request("GET", `/supplier/${id}`);
 export const getSupplierLinkedProducts = (supplierId, businessId) =>
     request("GET", `/supplier/${supplierId}/products?businessId=${businessId}`);
 export const getSupplierUnlinkedProducts = (supplierId, businessId) =>
-    request("GET", `/supplier/${supplierId}/unlinked-products?businessId=${businessId}`);
+    request(
+        "GET",
+        `/supplier/${supplierId}/unlinked-products?businessId=${businessId}`,
+    );
 export const createSupplier = (body) => request("POST", "/supplier", body);
 export const updateSupplier = (id, body) =>
     request("PUT", `/supplier/${id}`, body);
@@ -91,8 +93,7 @@ export const acceptInvite = (token, body) =>
     request("POST", `/employee/invite/${token}/accept`, body);
 export const cancelInvite = (requestId) =>
     request("DELETE", `/employee/invites/${requestId}`);
-export const leaveEmployee = (body) =>
-    request("POST", "/employee/leave", body);
+export const leaveEmployee = (body) => request("POST", "/employee/leave", body);
 
 // Warehouse
 export const getWarehouses = (businessId) =>
@@ -139,7 +140,6 @@ export const getWarehouseProducts = (warehouseId, businessId) =>
         `/saleorder/warehouse/${warehouseId}/products?businessId=${businessId}`,
     );
 
-
 // Inventory
 export const getInventory = (businessId) =>
     request("GET", `/inventory?businessId=${businessId}`);
@@ -147,7 +147,6 @@ export const adjustInventory = (body) =>
     request("POST", "/inventory/adjust", body);
 export const transferInventory = (body) =>
     request("POST", "/inventory/transfer", body);
-
 
 // Audit Log
 export const getAuditLogs = (params) => {

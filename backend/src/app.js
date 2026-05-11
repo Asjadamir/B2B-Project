@@ -34,16 +34,16 @@ app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 
-app.use("/api/auth",         authRoutes(authControllers));
-app.use("/api/business",     businessRoutes(businessControllers));
-app.use("/api/supplier",     supplierRoutes(supplierControllers));
-app.use("/api/category",     categoryRoutes(categoryControllers));
-app.use("/api/product",      productRoutes(productControllers));
-app.use("/api/employee",     employeeRoutes(employeeControllers));
-app.use("/api/warehouse",    warehouseRoutes(warehouseControllers));
+app.use("/api/auth", authRoutes(authControllers));
+app.use("/api/business", businessRoutes(businessControllers));
+app.use("/api/supplier", supplierRoutes(supplierControllers));
+app.use("/api/category", categoryRoutes(categoryControllers));
+app.use("/api/product", productRoutes(productControllers));
+app.use("/api/employee", employeeRoutes(employeeControllers));
+app.use("/api/warehouse", warehouseRoutes(warehouseControllers));
 app.use("/api/purchaseorder", purchaseOrderRoutes(purchaseOrderControllers));
-app.use("/api/saleorder",    saleOrderRoutes(saleOrderControllers));
-app.use("/api/auditlog",     auditLogRoutes(auditLogControllers));
+app.use("/api/saleorder", saleOrderRoutes(saleOrderControllers));
+app.use("/api/auditlog", auditLogRoutes(auditLogControllers));
 app.use("/api/inventory", inventoryRoutes(inventoryControllers));
 
 app.get("/", (req, res) => {
