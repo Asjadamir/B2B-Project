@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, NavLink, useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { motion } from "framer-motion";
 import { fetchBusinessById, fetchMyRoleThunk } from "@/store/businessSlice";
 import { logoutThunk } from "@/store/authSlice";
 import * as api from "@/lib/api";
@@ -37,56 +38,90 @@ function SidebarContent({ businessId, businessName, collapsed, role }) {
 
     return (
         <div className="flex flex-col h-full">
-            <div className={cn("flex items-center gap-2.5 px-4 py-4 border-b border-border", collapsed && "justify-center px-2")}>
-                <div className="size-7 rounded-md bg-primary flex items-center justify-center shrink-0">
+            {/* ── Logo area with gradient bg ── */}
+            <div className={cn(
+                "relative flex items-center gap-2.5 px-4 py-4 border-b border-border overflow-hidden",
+                collapsed && "justify-center px-2"
+            )}>
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/12 to-transparent pointer-events-none" />
+                <motion.div
+                    whileHover={{ scale: 1.08, rotate: -4 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    className="size-7 rounded-md bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm shadow-primary/30 relative z-10"
+                >
                     <Link2 className="size-3.5 text-primary-foreground" />
-                </div>
-                {!collapsed && <span className="font-bold text-sm truncate">CoreChain</span>}
+                </motion.div>
+                {!collapsed && <span className="font-bold text-sm truncate relative z-10">CoreChain</span>}
             </div>
 
+            {/* ── Business name ── */}
             {!collapsed && businessName && (
-                <div className="px-4 py-3 border-b border-border">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Business</p>
-                    <p className="text-sm font-medium truncate">{businessName}</p>
+                <div className="px-4 py-3 border-b border-border bg-primary/5">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Active Business</p>
+                    <p className="text-sm font-semibold truncate text-foreground">{businessName}</p>
                 </div>
             )}
 
+            {/* ── Nav items ── */}
             <ScrollArea className="flex-1 py-3">
                 <nav className="space-y-0.5 px-2">
-                    {navItems.map(({ label, to, icon: Icon }) => (
+                    {navItems.map(({ label, to, icon: Icon }, i) => (
                         <NavLink
                             key={to}
                             to={`/business/${businessId}/${to}`}
-                            className={({ isActive }) =>
-                                cn(
-                                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                                    "hover:bg-accent hover:text-accent-foreground",
-                                    isActive
-                                        ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
-                                        : "text-muted-foreground",
-                                    collapsed && "justify-center px-2"
-                                )
-                            }
                             title={collapsed ? label : undefined}
                         >
-                            <Icon className="size-4 shrink-0" />
-                            {!collapsed && <span className="truncate">{label}</span>}
+                            {({ isActive }) => (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -12 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: i * 0.04, duration: 0.3 }}
+                                    whileHover={{ x: collapsed ? 0 : 3 }}
+                                    className={cn(
+                                        "relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm cursor-pointer transition-all duration-150",
+                                        isActive
+                                            ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/25"
+                                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                                        collapsed && "justify-center px-2"
+                                    )}
+                                >
+                                    {isActive && (
+                                        <motion.div
+                                            layoutId="sidebar-active"
+                                            className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-primary/80 -z-10"
+                                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                                        />
+                                    )}
+                                    <Icon className="size-4 shrink-0" />
+                                    {!collapsed && <span className="truncate">{label}</span>}
+                                </motion.div>
+                            )}
                         </NavLink>
                     ))}
                 </nav>
             </ScrollArea>
 
+            {/* ── Back button ── */}
             <div className="p-2 border-t border-border">
                 <NavLink
                     to="/dashboard"
-                    className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
-                        collapsed && "justify-center px-2"
-                    )}
                     title={collapsed ? "Back to Dashboard" : undefined}
                 >
-                    <ChevronLeft className="size-4 shrink-0" />
-                    {!collapsed && <span>Back to Dashboard</span>}
+                    {({ isActive }) => (
+                        <motion.div
+                            whileHover={{ x: collapsed ? 0 : -2 }}
+                            className={cn(
+                                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm cursor-pointer transition-colors",
+                                isActive
+                                    ? "bg-accent text-accent-foreground"
+                                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                                collapsed && "justify-center px-2"
+                            )}
+                        >
+                            <ChevronLeft className="size-4 shrink-0" />
+                            {!collapsed && <span>Back to Dashboard</span>}
+                        </motion.div>
+                    )}
                 </NavLink>
             </div>
         </div>

@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { motion } from "framer-motion";
 import { loginThunk, clearAuthStatus } from "@/store/authSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,12 @@ const schema = z.object({
     email: z.string().email("Please enter a valid email address"),
     password: z.string().min(1, "Password is required"),
 });
+
+const features = [
+    { icon: Package,  label: "Real-time inventory tracking" },
+    { icon: Truck,    label: "Automated order processing" },
+    { icon: BarChart3,label: "Actionable analytics & reports" },
+];
 
 export default function LoginPage() {
     const dispatch = useDispatch();
@@ -36,43 +43,81 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen flex">
-            {/* Left branding panel */}
-            <div className="hidden lg:flex flex-col w-1/2 bg-primary p-12 text-primary-foreground">
-                <div className="flex items-center gap-2 mb-auto">
+            {/* ── Branding panel ── */}
+            <motion.div
+                initial={{ x: -60, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.55, ease: [0.21, 0.47, 0.32, 0.98] }}
+                className="hidden lg:flex flex-col w-1/2 bg-primary p-12 text-primary-foreground relative overflow-hidden"
+            >
+                {/* Background orbs */}
+                <div className="orb-float     absolute -top-24 -right-24 size-72 rounded-full bg-white/5  blur-3xl pointer-events-none" />
+                <div className="orb-float-alt absolute -bottom-24 -left-24 size-80 rounded-full bg-white/5  blur-3xl pointer-events-none" />
+
+                <motion.div
+                    className="flex items-center gap-2 mb-auto"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                >
                     <div className="size-7 rounded-md bg-primary-foreground/20 flex items-center justify-center">
                         <Link2 className="size-4" />
                     </div>
                     <span className="font-bold text-lg">CoreChain</span>
-                </div>
-                <div className="space-y-8">
-                    <div>
+                </motion.div>
+
+                <div className="space-y-8 relative z-10">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4, duration: 0.5 }}
+                    >
                         <h2 className="text-3xl font-bold leading-tight mb-3">
                             One Platform.<br />Complete Supply Chain Control.
                         </h2>
                         <p className="text-primary-foreground/80 leading-relaxed">
                             Manage suppliers, inventory, orders and warehouses from a single unified dashboard.
                         </p>
-                    </div>
-                    <div className="space-y-4">
-                        {[
-                            { icon: Package, label: "Real-time inventory tracking" },
-                            { icon: Truck, label: "Automated order processing" },
-                            { icon: BarChart3, label: "Actionable analytics & reports" },
-                        ].map(({ icon: Icon, label }) => (
-                            <div key={label} className="flex items-center gap-3">
-                                <div className="size-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center">
+                    </motion.div>
+
+                    <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.14, delayChildren: 0.6 } } }}
+                        className="space-y-4"
+                    >
+                        {features.map(({ icon: Icon, label }) => (
+                            <motion.div
+                                key={label}
+                                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.45 } } }}
+                                className="flex items-center gap-3"
+                            >
+                                <div className="size-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center shrink-0">
                                     <Icon className="size-4" />
                                 </div>
                                 <span className="text-sm text-primary-foreground/90">{label}</span>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
-                <p className="text-xs text-primary-foreground/50 mt-auto">© {new Date().getFullYear()} CoreChain</p>
-            </div>
 
-            {/* Right form panel */}
-            <div className="flex-1 flex flex-col bg-background">
+                <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.1 }}
+                    className="text-xs text-primary-foreground/50 mt-auto"
+                >
+                    © {new Date().getFullYear()} CoreChain
+                </motion.p>
+            </motion.div>
+
+            {/* ── Form panel ── */}
+            <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] }}
+                className="flex-1 flex flex-col bg-background"
+            >
                 <div className="flex items-center justify-between p-6 lg:justify-end">
                     <div className="flex items-center gap-2 lg:hidden">
                         <div className="size-6 rounded bg-primary flex items-center justify-center">
@@ -89,7 +134,12 @@ export default function LoginPage() {
                 </div>
 
                 <div className="flex-1 flex items-center justify-center px-6 py-12">
-                    <div className="w-full max-w-sm space-y-6">
+                    <motion.div
+                        initial={{ opacity: 0, y: 24 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15, duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] }}
+                        className="w-full max-w-sm space-y-6"
+                    >
                         <div className="space-y-1">
                             <h1 className="text-2xl font-bold">Welcome back</h1>
                             <p className="text-sm text-muted-foreground">Sign in to your CoreChain account</p>
@@ -97,9 +147,13 @@ export default function LoginPage() {
 
                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                             {error && (
-                                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
+                                <motion.div
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5"
+                                >
                                     {error}
-                                </div>
+                                </motion.div>
                             )}
 
                             <div className="space-y-1.5">
@@ -131,7 +185,7 @@ export default function LoginPage() {
                                     />
                                     <button
                                         type="button"
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                         onClick={() => setShowPassword((v) => !v)}
                                     >
                                         {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -140,9 +194,11 @@ export default function LoginPage() {
                                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
                             </div>
 
-                            <Button type="submit" className="w-full" disabled={loading}>
-                                {loading ? "Signing in…" : "Sign in"}
-                            </Button>
+                            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                                <Button type="submit" className="w-full shadow-sm" disabled={loading}>
+                                    {loading ? "Signing in…" : "Sign in"}
+                                </Button>
+                            </motion.div>
                         </form>
 
                         <p className="text-center text-sm text-muted-foreground">
@@ -151,9 +207,9 @@ export default function LoginPage() {
                                 Get started free
                             </Link>
                         </p>
-                    </div>
+                    </motion.div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 }
