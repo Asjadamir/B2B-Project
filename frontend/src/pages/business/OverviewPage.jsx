@@ -1,21 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, useInView, useMotionValue, useSpring, AnimatePresence } from "framer-motion";
+import {
+    AreaChart, Area, PieChart, Pie, Cell, Label,
+    XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+    ResponsiveContainer,
+} from "recharts";
 import { fetchProducts } from "@/store/productSlice";
 import { fetchPurchaseOrders } from "@/store/purchaseOrderSlice";
 import { fetchSaleOrders } from "@/store/saleOrderSlice";
 import { fetchEmployees } from "@/store/employeeSlice";
 import { getAuditLogs } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package, ShoppingCart, ClipboardList, Users, ArrowRight, Activity } from "lucide-react";
+import {
+    Package, ShoppingCart, ClipboardList, Users,
+    ArrowRight, Activity, TrendingUp, PieChart as PieIcon,
+} from "lucide-react";
 import { STATUS_COLORS } from "@/lib/constants";
 
 const EASE = [0.21, 0.47, 0.32, 0.98];
 
+/* ── colour palettes ── */
 const STAT_VARIANTS = [
     { iconBg: "from-blue-500/20 to-indigo-500/20",    iconColor: "text-blue-500",    hoverShadow: "hover:shadow-blue-500/10"    },
     { iconBg: "from-orange-500/20 to-amber-500/20",   iconColor: "text-orange-500",  hoverShadow: "hover:shadow-orange-500/10"  },
@@ -23,6 +32,195 @@ const STAT_VARIANTS = [
     { iconBg: "from-emerald-500/20 to-teal-500/20",   iconColor: "text-emerald-500", hoverShadow: "hover:shadow-emerald-500/10" },
 ];
 
+const PO_COLORS = [
+    { status: "Pending",   color: "#f59e0b" },
+    { status: "Received",  color: "#22c55e" },
+    { status: "Cancelled", color: "#ef4444" },
+];
+const SO_COLORS = [
+    { status: "Pending",   color: "#f59e0b" },
+    { status: "Fulfilled", color: "#22c55e" },
+    { status: "Cancelled", color: "#ef4444" },
+];
+
+/* ── helpers ── */
+function buildLastNMonths(n) {
+    return Array.from({ length: n }, (_, i) => {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - (n - 1 - i));
+        return {
+            key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+            label: d.toLocaleDateString("en-US", { month: "short" }),
+            PO: 0,
+            SO: 0,
+        };
+    });
+}
+
+/* ── chart sub-components ── */
+function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null;
+    return (
+        <div style={{
+            background: "var(--card)", border: "1px solid var(--border)",
+            borderRadius: 12, padding: "8px 12px", fontSize: 12,
+            boxShadow: "0 8px 24px -4px rgba(0,0,0,0.18)",
+        }}>
+            {label && (
+                <p style={{ color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>{label}</p>
+            )}
+            {payload.map((p) => (
+                <div key={p.dataKey} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 4, background: p.color }} />
+                    <span style={{ color: "var(--foreground)", fontWeight: 700 }}>{p.value}</span>
+                    <span style={{ color: "var(--muted-foreground)" }}>{p.name}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function PieTooltip({ active, payload }) {
+    if (!active || !payload?.length) return null;
+    const p = payload[0];
+    return (
+        <div style={{
+            background: "var(--card)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "6px 10px", fontSize: 12,
+            boxShadow: "0 4px 16px -4px rgba(0,0,0,0.2)",
+        }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 4, background: p.payload.color }} />
+                <span style={{ color: "var(--foreground)", fontWeight: 700 }}>{p.value}</span>
+                <span style={{ color: "var(--muted-foreground)" }}>{p.name}</span>
+            </div>
+        </div>
+    );
+}
+
+function EmptyChartState({ message }) {
+    return (
+        <div className="flex flex-col items-center justify-center h-[160px] gap-2">
+            <PieIcon className="size-8 text-muted-foreground/30" />
+            <p className="text-xs text-muted-foreground">{message}</p>
+        </div>
+    );
+}
+
+function StatusDonut({ title, description, data, total, loading }) {
+    const isEmpty = total === 0;
+    const displayData = isEmpty ? [{ status: "None", color: "var(--muted)", value: 1 }] : data;
+
+    if (loading) {
+        return (
+            <Card className="glass">
+                <CardHeader className="pb-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24 mt-1" />
+                </CardHeader>
+                <CardContent><Skeleton className="h-40 w-full rounded-xl" /></CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="glass hover:border-primary/20 transition-colors">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                    <PieIcon className="size-3.5 text-muted-foreground" /> {title}
+                </CardTitle>
+                <CardDescription className="text-xs">{description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center gap-4">
+                    {/* Donut */}
+                    <div className="w-[130px] h-[130px] shrink-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={displayData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={40}
+                                    outerRadius={58}
+                                    startAngle={90}
+                                    endAngle={-270}
+                                    dataKey="value"
+                                    strokeWidth={2}
+                                    stroke="var(--background)"
+                                >
+                                    {displayData.map((entry, i) => (
+                                        <Cell key={i} fill={entry.color} />
+                                    ))}
+                                    {!isEmpty && (
+                                        <Label
+                                            content={({ viewBox: { cx, cy } }) => (
+                                                <>
+                                                    <text
+                                                        x={cx} y={cy - 7}
+                                                        textAnchor="middle"
+                                                        style={{ fill: "var(--foreground)", fontSize: 22, fontWeight: 700 }}
+                                                    >
+                                                        {total}
+                                                    </text>
+                                                    <text
+                                                        x={cx} y={cy + 11}
+                                                        textAnchor="middle"
+                                                        style={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+                                                    >
+                                                        total
+                                                    </text>
+                                                </>
+                                            )}
+                                        />
+                                    )}
+                                </Pie>
+                                <RechartsTooltip content={<PieTooltip />} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex-1 space-y-2.5">
+                        {isEmpty ? (
+                            <p className="text-xs text-muted-foreground italic">No orders yet</p>
+                        ) : (
+                            data.filter(d => d.value > 0).map((d) => (
+                                <div key={d.status} className="space-y-0.5">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="size-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                            <span className="text-muted-foreground">{d.status}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-semibold">{d.value}</span>
+                                            <span className="text-muted-foreground/60">
+                                                {Math.round((d.value / total) * 100)}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {/* Mini progress bar */}
+                                    <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${Math.round((d.value / total) * 100)}%` }}
+                                            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+                                            className="h-full rounded-full"
+                                            style={{ background: d.color }}
+                                        />
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+/* ── animated count ── */
 function AnimatedCount({ target }) {
     const ref = useRef(null);
     const inView = useInView(ref, { once: true });
@@ -30,15 +228,13 @@ function AnimatedCount({ target }) {
     const spring = useSpring(motionVal, { stiffness: 120, damping: 22 });
     const [display, setDisplay] = useState(0);
 
-    useEffect(() => {
-        if (inView) motionVal.set(target);
-    }, [inView, target, motionVal]);
-
+    useEffect(() => { if (inView) motionVal.set(target); }, [inView, target, motionVal]);
     useEffect(() => spring.on("change", (v) => setDisplay(Math.round(v))), [spring]);
 
     return <span ref={ref}>{display}</span>;
 }
 
+/* ── stat card ── */
 function StatCard({ icon: Icon, label, value, sub, to, navigate, delay = 0, colorIndex = 0 }) {
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: "-40px" });
@@ -60,9 +256,7 @@ function StatCard({ icon: Icon, label, value, sub, to, navigate, delay = 0, colo
                     <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1 min-w-0">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-                            <p className="text-3xl font-bold">
-                                <AnimatedCount target={value} />
-                            </p>
+                            <p className="text-3xl font-bold"><AnimatedCount target={value} /></p>
                             {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
                         </div>
                         <motion.div
@@ -78,6 +272,9 @@ function StatCard({ icon: Icon, label, value, sub, to, navigate, delay = 0, colo
     );
 }
 
+/* ════════════════════════════════════════════
+   Main page
+   ════════════════════════════════════════════ */
 export default function OverviewPage() {
     const { id } = useParams();
     const dispatch = useDispatch();
@@ -100,16 +297,53 @@ export default function OverviewPage() {
             .finally(() => setLogsLoading(false));
     }, [id, dispatch]);
 
+    /* ── derived chart data ── */
+    const monthlyData = useMemo(() => {
+        const months = buildLastNMonths(6);
+        poOrders.forEach((o) => {
+            const d = new Date(o.OrderDate || o.CreatedAt);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const m = months.find((m) => m.key === key);
+            if (m) m.PO++;
+        });
+        soOrders.forEach((o) => {
+            const d = new Date(o.OrderDate || o.CreatedAt);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const m = months.find((m) => m.key === key);
+            if (m) m.SO++;
+        });
+        return months;
+    }, [poOrders, soOrders]);
+
+    const hasAnyOrderActivity = monthlyData.some((m) => m.PO > 0 || m.SO > 0);
+
+    const poStatusData = useMemo(() =>
+        PO_COLORS.map(({ status, color }) => ({
+            status, color,
+            value: poOrders.filter((o) => o.Status === status).length,
+        })),
+        [poOrders]
+    );
+
+    const soStatusData = useMemo(() =>
+        SO_COLORS.map(({ status, color }) => ({
+            status, color,
+            value: soOrders.filter((o) => o.Status === status).length,
+        })),
+        [soOrders]
+    );
+
     const pendingPO = poOrders.filter((o) => o.Status === "Pending").length;
     const pendingSO = soOrders.filter((o) => o.Status === "Pending").length;
     const base = `/business/${id}`;
 
     return (
         <div className="relative p-6 space-y-6 max-w-5xl mx-auto">
-            {/* Ambient blobs — blur sources for glass cards */}
+            {/* Ambient blobs */}
             <div className="fixed top-32 right-16 size-80 rounded-full bg-blue-500/5 blur-3xl pointer-events-none -z-10" />
             <div className="fixed bottom-32 left-1/3 size-64 rounded-full bg-violet-500/5 blur-3xl pointer-events-none -z-10" />
 
+            {/* ── Header ── */}
             <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -119,22 +353,124 @@ export default function OverviewPage() {
                 <p className="text-sm text-muted-foreground mt-0.5">A snapshot of your business activity</p>
             </motion.div>
 
-            {/* Stat cards */}
+            {/* ── Stat cards ── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={Package}       label="Total Products"  value={products.length}  sub="in catalog" to={`${base}/products`}        navigate={navigate} delay={0}    colorIndex={0} />
-                <StatCard icon={ShoppingCart}  label="Purchase Orders" value={pendingPO}         sub="pending"    to={`${base}/purchase-orders`}  navigate={navigate} delay={0.07} colorIndex={1} />
-                <StatCard icon={ClipboardList} label="Sale Orders"     value={pendingSO}         sub="pending"    to={`${base}/sale-orders`}       navigate={navigate} delay={0.14} colorIndex={2} />
-                <StatCard icon={Users}         label="Team Members"    value={employees.length}  sub="employees"  to={`${base}/employees`}         navigate={navigate} delay={0.21} colorIndex={3} />
+                <StatCard icon={Package}       label="Total Products"  value={products.length} sub="in catalog" to={`${base}/products`}       navigate={navigate} delay={0}    colorIndex={0} />
+                <StatCard icon={ShoppingCart}  label="Purchase Orders" value={pendingPO}        sub="pending"   to={`${base}/purchase-orders`} navigate={navigate} delay={0.07} colorIndex={1} />
+                <StatCard icon={ClipboardList} label="Sale Orders"     value={pendingSO}        sub="pending"   to={`${base}/sale-orders`}      navigate={navigate} delay={0.14} colorIndex={2} />
+                <StatCard icon={Users}         label="Team Members"    value={employees.length} sub="employees" to={`${base}/employees`}        navigate={navigate} delay={0.21} colorIndex={3} />
             </div>
 
-            {/* Quick action cards */}
+            {/* ═══════════════════════════════════
+                Charts section
+                ═══════════════════════════════════ */}
+            <motion.div
+                initial={{ opacity: 0, y: 22 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.28, ease: EASE }}
+                className="space-y-4"
+            >
+                {/* ── Orders Trend (area chart) ── */}
+                <Card className="glass hover:border-primary/20 transition-colors">
+                    <CardHeader className="pb-2 flex flex-row items-start justify-between">
+                        <div>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <TrendingUp className="size-3.5 text-muted-foreground" />
+                                Orders Trend
+                            </CardTitle>
+                            <CardDescription className="text-xs mt-0.5">
+                                Purchase &amp; sale order volume — last 6 months
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1.5">
+                                <span className="inline-block size-2.5 rounded-full bg-indigo-500" />
+                                Purchase
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="inline-block size-2.5 rounded-full bg-violet-500" />
+                                Sale
+                            </span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-1 pb-4">
+                        {(poLoading || soLoading) ? (
+                            <Skeleton className="h-[180px] w-full rounded-xl" />
+                        ) : !hasAnyOrderActivity ? (
+                            <EmptyChartState message="No order activity yet — create your first order to see trends" />
+                        ) : (
+                            <ResponsiveContainer width="100%" height={200}>
+                                <AreaChart data={monthlyData} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="gradPO" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%"   stopColor="#6366f1" stopOpacity={0.35} />
+                                            <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
+                                        </linearGradient>
+                                        <linearGradient id="gradSO" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%"   stopColor="#8b5cf6" stopOpacity={0.35} />
+                                            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.02} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        stroke="var(--border)"
+                                        vertical={false}
+                                        strokeOpacity={0.6}
+                                    />
+                                    <XAxis
+                                        dataKey="label"
+                                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                        axisLine={false} tickLine={false}
+                                    />
+                                    <YAxis
+                                        allowDecimals={false}
+                                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                        axisLine={false} tickLine={false}
+                                    />
+                                    <RechartsTooltip content={<CustomTooltip />} cursor={{ stroke: "var(--border)", strokeWidth: 1 }} />
+                                    <Area
+                                        type="monotone" dataKey="PO" name="Purchase Orders"
+                                        stroke="#6366f1" fill="url(#gradPO)"
+                                        strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#6366f1" }}
+                                    />
+                                    <Area
+                                        type="monotone" dataKey="SO" name="Sale Orders"
+                                        stroke="#8b5cf6" fill="url(#gradSO)"
+                                        strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: "#8b5cf6" }}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* ── Status donut charts ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <StatusDonut
+                        title="Purchase Order Status"
+                        description="Breakdown of all PO statuses"
+                        data={poStatusData}
+                        total={poOrders.length}
+                        loading={poLoading}
+                    />
+                    <StatusDonut
+                        title="Sale Order Status"
+                        description="Breakdown of all SO statuses"
+                        data={soStatusData}
+                        total={soOrders.length}
+                        loading={soLoading}
+                    />
+                </div>
+            </motion.div>
+
+            {/* ── Recent orders ── */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.25, ease: EASE }}
+                transition={{ duration: 0.5, delay: 0.38, ease: EASE }}
                 className="grid grid-cols-1 sm:grid-cols-2 gap-4"
             >
-                <Card>
+                <Card className="glass">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm">Recent Purchase Orders</CardTitle>
                     </CardHeader>
@@ -153,7 +489,7 @@ export default function OverviewPage() {
                                         transition={{ delay: i * 0.05, duration: 0.3 }}
                                         className="flex items-center justify-between py-1.5 text-sm"
                                     >
-                                        <span className="text-muted-foreground">PO #{o.POID}</span>
+                                        <span className="text-muted-foreground font-mono text-xs">PO-{String(o.POID).padStart(4, "0")}</span>
                                         <Badge className={`text-xs ${STATUS_COLORS[o.Status]}`} variant="outline">{o.Status}</Badge>
                                     </motion.div>
                                 ))}
@@ -165,7 +501,7 @@ export default function OverviewPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="glass">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm">Recent Sale Orders</CardTitle>
                     </CardHeader>
@@ -197,13 +533,13 @@ export default function OverviewPage() {
                 </Card>
             </motion.div>
 
-            {/* Audit log */}
+            {/* ── Audit log ── */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.35, ease: EASE }}
+                transition={{ duration: 0.5, delay: 0.45, ease: EASE }}
             >
-                <Card>
+                <Card className="glass">
                     <CardHeader className="pb-3 flex flex-row items-center justify-between">
                         <CardTitle className="text-sm flex items-center gap-2">
                             <Activity className="size-4" /> Recent Activity
