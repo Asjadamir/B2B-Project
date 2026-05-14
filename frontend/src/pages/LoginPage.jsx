@@ -18,9 +18,9 @@ const schema = z.object({
 });
 
 const features = [
-    { icon: Package,  label: "Real-time inventory tracking" },
-    { icon: Truck,    label: "Automated order processing" },
-    { icon: BarChart3,label: "Actionable analytics & reports" },
+    { icon: Package, label: "Real-time inventory tracking" },
+    { icon: Truck, label: "Automated order processing" },
+    { icon: BarChart3, label: "Actionable analytics & reports" },
 ];
 
 export default function LoginPage() {
@@ -29,7 +29,11 @@ export default function LoginPage() {
     const { loading, error, user } = useSelector((s) => s.auth);
     const [showPassword, setShowPassword] = useState(false);
 
-    const { register, handleSubmit, formState: { errors } } = useForm({
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({
         resolver: zodResolver(schema),
     });
 
@@ -73,29 +77,49 @@ export default function LoginPage() {
                         transition={{ delay: 0.4, duration: 0.5 }}
                     >
                         <h2 className="text-3xl font-bold leading-tight mb-3">
-                            One Platform.<br />Complete Supply Chain Control.
+                            One Platform.
+                            <br />
+                            Complete Supply Chain Control.
                         </h2>
                         <p className="text-primary-foreground/80 leading-relaxed">
-                            Manage suppliers, inventory, orders and warehouses from a single unified dashboard.
+                            Manage suppliers, inventory, orders and warehouses
+                            from a single unified dashboard.
                         </p>
                     </motion.div>
 
                     <motion.div
                         initial="hidden"
                         animate="visible"
-                        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.14, delayChildren: 0.6 } } }}
+                        variants={{
+                            hidden: {},
+                            visible: {
+                                transition: {
+                                    staggerChildren: 0.14,
+                                    delayChildren: 0.6,
+                                },
+                            },
+                        }}
                         className="space-y-4"
                     >
                         {features.map(({ icon: Icon, label }) => (
                             <motion.div
                                 key={label}
-                                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.45 } } }}
+                                variants={{
+                                    hidden: { opacity: 0, x: -20 },
+                                    visible: {
+                                        opacity: 1,
+                                        x: 0,
+                                        transition: { duration: 0.45 },
+                                    },
+                                }}
                                 className="flex items-center gap-3"
                             >
                                 <div className="size-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center shrink-0">
                                     <Icon className="size-4" />
                                 </div>
-                                <span className="text-sm text-primary-foreground/90">{label}</span>
+                                <span className="text-sm text-primary-foreground/90">
+                                    {label}
+                                </span>
                             </motion.div>
                         ))}
                     </motion.div>
@@ -137,15 +161,24 @@ export default function LoginPage() {
                     <motion.div
                         initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15, duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] }}
+                        transition={{
+                            delay: 0.15,
+                            duration: 0.5,
+                            ease: [0.21, 0.47, 0.32, 0.98],
+                        }}
                         className="w-full max-w-sm space-y-6"
                     >
                         <div className="space-y-1">
                             <h1 className="text-2xl font-bold">Welcome back</h1>
-                            <p className="text-sm text-muted-foreground">Sign in to your CoreChain account</p>
+                            <p className="text-sm text-muted-foreground">
+                                Sign in to your CoreChain account
+                            </p>
                         </div>
 
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <form
+                            onSubmit={handleSubmit(onSubmit)}
+                            className="space-y-4"
+                        >
                             {error && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -8 }}
@@ -163,39 +196,73 @@ export default function LoginPage() {
                                     type="email"
                                     placeholder="you@company.com"
                                     {...register("email")}
-                                    className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
+                                    className={
+                                        errors.email
+                                            ? "border-destructive focus-visible:ring-destructive"
+                                            : ""
+                                    }
                                 />
-                                {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+                                {errors.email && (
+                                    <p className="text-xs text-destructive">
+                                        {errors.email.message}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="space-y-1.5">
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="password">Password</Label>
-                                    <Link to="/forgot-password" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                                    <Link
+                                        to="/forgot-password"
+                                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                                    >
                                         Forgot password?
                                     </Link>
                                 </div>
                                 <div className="relative">
                                     <Input
                                         id="password"
-                                        type={showPassword ? "text" : "password"}
+                                        type={
+                                            showPassword ? "text" : "password"
+                                        }
                                         placeholder="••••••••"
                                         {...register("password")}
-                                        className={errors.password ? "border-destructive focus-visible:ring-destructive pr-10" : "pr-10"}
+                                        className={
+                                            errors.password
+                                                ? "border-destructive focus-visible:ring-destructive pr-10"
+                                                : "pr-10"
+                                        }
                                     />
                                     <button
                                         type="button"
                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                        onClick={() => setShowPassword((v) => !v)}
+                                        onClick={() =>
+                                            setShowPassword((v) => !v)
+                                        }
                                     >
-                                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                        {showPassword ? (
+                                            <EyeOff className="size-4" />
+                                        ) : (
+                                            <Eye className="size-4" />
+                                        )}
                                     </button>
                                 </div>
-                                {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+                                {errors.password && (
+                                    <p className="text-xs text-destructive">
+                                        {errors.password.message}
+                                    </p>
+                                )}
                             </div>
 
-                            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                                <Button type="submit" className="w-full shadow-sm" disabled={loading}>
+                            <motion.div
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.99 }}
+                            >
+                                <Button
+                                    type="submit"
+                                    className="w-full shadow-sm"
+                                    disabled={loading}
+                                >
                                     {loading ? "Signing in…" : "Sign in"}
                                 </Button>
                             </motion.div>
@@ -203,7 +270,10 @@ export default function LoginPage() {
 
                         <p className="text-center text-sm text-muted-foreground">
                             Don&apos;t have an account?{" "}
-                            <Link to="/signup" className="text-primary font-medium hover:underline">
+                            <Link
+                                to="/signup"
+                                className="text-primary font-medium hover:underline"
+                            >
                                 Get started free
                             </Link>
                         </p>

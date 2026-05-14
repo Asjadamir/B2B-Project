@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, useInView, useMotionValue, useSpring, AnimatePresence } from "framer-motion";
 import {
-    AreaChart, Area, PieChart, Pie, Cell, Label,
+    AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, Label,
     XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer,
 } from "recharts";
@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     Package, ShoppingCart, ClipboardList, Users,
-    ArrowRight, Activity, TrendingUp, PieChart as PieIcon,
+    ArrowRight, Activity, TrendingUp, PieChart as PieIcon, DollarSign,
 } from "lucide-react";
 import { STATUS_COLORS } from "@/lib/constants";
 
@@ -272,6 +272,108 @@ function StatCard({ icon: Icon, label, value, sub, to, navigate, delay = 0, colo
     );
 }
 
+/* ── financial chart helpers ── */
+const FINANCE_TABS = ["Weekly", "Monthly", "Yearly", "Overall"];
+
+function buildFinancialData(poOrders, soOrders, tab) {
+    const getKey = (o) => o.OrderDate || o.CreatedAt || "";
+
+    if (tab === "Weekly") {
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            const dayKey = d.toISOString().slice(0, 10);
+            const label = d.toLocaleDateString("en-US", { weekday: "short" });
+            const revenue = soOrders
+                .filter((o) => getKey(o).slice(0, 10) === dayKey)
+                .reduce((s, o) => s + Number(o.TotalValue || 0), 0);
+            const expense = poOrders
+                .filter((o) => getKey(o).slice(0, 10) === dayKey)
+                .reduce((s, o) => s + Number(o.TotalValue || 0), 0);
+            return { label, revenue, expense };
+        });
+    }
+
+    if (tab === "Monthly") {
+        return Array.from({ length: 6 }, (_, i) => {
+            const d = new Date();
+            d.setDate(1);
+            d.setMonth(d.getMonth() - (5 - i));
+            const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const label = d.toLocaleDateString("en-US", { month: "short" });
+            const matchKey = (o) => {
+                const od = new Date(getKey(o));
+                return `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, "0")}` === mKey;
+            };
+            const revenue = soOrders.filter(matchKey).reduce((s, o) => s + Number(o.TotalValue || 0), 0);
+            const expense = poOrders.filter(matchKey).reduce((s, o) => s + Number(o.TotalValue || 0), 0);
+            return { label, revenue, expense };
+        });
+    }
+
+    if (tab === "Yearly") {
+        return Array.from({ length: 12 }, (_, i) => {
+            const d = new Date();
+            d.setDate(1);
+            d.setMonth(d.getMonth() - (11 - i));
+            const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+            const matchKey = (o) => {
+                const od = new Date(getKey(o));
+                return `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, "0")}` === mKey;
+            };
+            const revenue = soOrders.filter(matchKey).reduce((s, o) => s + Number(o.TotalValue || 0), 0);
+            const expense = poOrders.filter(matchKey).reduce((s, o) => s + Number(o.TotalValue || 0), 0);
+            return { label, revenue, expense };
+        });
+    }
+
+    // Overall — group by year
+    const yearMap = {};
+    poOrders.forEach((o) => {
+        const yr = new Date(getKey(o)).getFullYear();
+        if (isNaN(yr)) return;
+        if (!yearMap[yr]) yearMap[yr] = { label: String(yr), revenue: 0, expense: 0 };
+        yearMap[yr].expense += Number(o.TotalValue || 0);
+    });
+    soOrders.forEach((o) => {
+        const yr = new Date(getKey(o)).getFullYear();
+        if (isNaN(yr)) return;
+        if (!yearMap[yr]) yearMap[yr] = { label: String(yr), revenue: 0, expense: 0 };
+        yearMap[yr].revenue += Number(o.TotalValue || 0);
+    });
+    const sorted = Object.values(yearMap).sort((a, b) => a.label.localeCompare(b.label));
+    return sorted.length ? sorted : [{ label: new Date().getFullYear().toString(), revenue: 0, expense: 0 }];
+}
+
+function formatCurrency(v) {
+    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000)     return `$${(v / 1_000).toFixed(1)}K`;
+    return `$${v.toFixed(0)}`;
+}
+
+function FinancialTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null;
+    return (
+        <div style={{
+            background: "var(--card)", border: "1px solid var(--border)",
+            borderRadius: 12, padding: "8px 12px", fontSize: 12,
+            boxShadow: "0 8px 24px -4px rgba(0,0,0,0.18)",
+        }}>
+            {label && (
+                <p style={{ color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>{label}</p>
+            )}
+            {payload.map((p) => (
+                <div key={p.dataKey} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 4, background: p.color }} />
+                    <span style={{ color: "var(--foreground)", fontWeight: 700 }}>{formatCurrency(p.value)}</span>
+                    <span style={{ color: "var(--muted-foreground)" }}>{p.name}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /* ════════════════════════════════════════════
    Main page
    ════════════════════════════════════════════ */
@@ -285,6 +387,7 @@ export default function OverviewPage() {
     const { employees } = useSelector((s) => s.employee);
     const [logs, setLogs] = useState([]);
     const [logsLoading, setLogsLoading] = useState(true);
+    const [financeTab, setFinanceTab] = useState("Monthly");
 
     useEffect(() => {
         dispatch(fetchProducts(id));
@@ -316,6 +419,12 @@ export default function OverviewPage() {
     }, [poOrders, soOrders]);
 
     const hasAnyOrderActivity = monthlyData.some((m) => m.PO > 0 || m.SO > 0);
+
+    const financialData = useMemo(
+        () => buildFinancialData(poOrders, soOrders, financeTab),
+        [poOrders, soOrders, financeTab]
+    );
+    const hasFinancialData = financialData.some((d) => d.revenue > 0 || d.expense > 0);
 
     const poStatusData = useMemo(() =>
         PO_COLORS.map(({ status, color }) => ({
@@ -440,6 +549,100 @@ export default function OverviewPage() {
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* ── Revenue vs Expense (bar chart) ── */}
+                <Card className="glass hover:border-primary/20 transition-colors">
+                    <CardHeader className="pb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div>
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                    <DollarSign className="size-3.5 text-muted-foreground" />
+                                    Revenue vs Expense
+                                </CardTitle>
+                                <CardDescription className="text-xs mt-0.5">
+                                    Sale order revenue and purchase order expense over time
+                                </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5 self-start">
+                                {FINANCE_TABS.map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setFinanceTab(tab)}
+                                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                                            financeTab === tab
+                                                ? "bg-background shadow-sm text-foreground"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1.5">
+                                <span className="inline-block size-2.5 rounded-full bg-emerald-500" />
+                                Revenue
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="inline-block size-2.5 rounded-full bg-rose-500" />
+                                Expense
+                            </span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-1 pb-4">
+                        {(poLoading || soLoading) ? (
+                            <Skeleton className="h-[200px] w-full rounded-xl" />
+                        ) : !hasFinancialData ? (
+                            <EmptyChartState message="No financial data yet — create orders to see revenue and expense trends" />
+                        ) : (
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={financeTab}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.25, ease: EASE }}
+                                >
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart data={financialData} margin={{ top: 6, right: 6, left: -4, bottom: 0 }} barCategoryGap="30%">
+                                            <defs>
+                                                <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
+                                                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.6} />
+                                                </linearGradient>
+                                                <linearGradient id="gradExpense" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9} />
+                                                    <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.6} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid
+                                                strokeDasharray="3 3"
+                                                stroke="var(--border)"
+                                                vertical={false}
+                                                strokeOpacity={0.6}
+                                            />
+                                            <XAxis
+                                                dataKey="label"
+                                                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                                axisLine={false} tickLine={false}
+                                            />
+                                            <YAxis
+                                                tickFormatter={formatCurrency}
+                                                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                                                axisLine={false} tickLine={false}
+                                                width={54}
+                                            />
+                                            <RechartsTooltip content={<FinancialTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.3 }} />
+                                            <Bar dataKey="revenue" name="Revenue" fill="url(#gradRevenue)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                                            <Bar dataKey="expense" name="Expense" fill="url(#gradExpense)" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </motion.div>
+                            </AnimatePresence>
                         )}
                     </CardContent>
                 </Card>

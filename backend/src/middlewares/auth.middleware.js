@@ -5,7 +5,9 @@ const authMiddleware = (req, res, next) => {
     const token = req.cookies?.token;
 
     if (!token) {
-        return res.status(401).json({ message: "Unauthorized. Please log in." });
+        return res
+            .status(401)
+            .json({ message: "Unauthorized. Please log in." });
     }
 
     try {
@@ -13,7 +15,11 @@ const authMiddleware = (req, res, next) => {
         req.user = { userId: decoded.userId, email: decoded.email };
         next();
     } catch (error) {
-        return res.status(401).json({ message: "Invalid or expired session. Please log in again." });
+        return res
+            .status(401)
+            .json({
+                message: "Invalid or expired session. Please log in again.",
+            });
     }
 };
 
