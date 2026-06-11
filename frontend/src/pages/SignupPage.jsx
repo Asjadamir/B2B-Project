@@ -5,12 +5,20 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { signupThunk, clearAuthStatus } from "@/store/authSlice";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Eye, EyeOff, Link2, CheckCircle, Warehouse, ShoppingCart, Users } from "lucide-react";
+import { signupThunk, clearAuthStatus } from "@/store/authSlice.js";
+import { Button } from "@/components/ui/button.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { ThemeToggle } from "@/components/theme-toggle.jsx";
+import {
+    Eye,
+    EyeOff,
+    Link2,
+    CheckCircle,
+    Warehouse,
+    ShoppingCart,
+    Users,
+} from "lucide-react";
 
 const schema = z.object({
     fullName: z
@@ -28,19 +36,24 @@ const schema = z.object({
 });
 
 const features = [
-    { icon: Warehouse,    label: "Multi-warehouse inventory control" },
+    { icon: Warehouse, label: "Multi-warehouse inventory control" },
     { icon: ShoppingCart, label: "Purchase & sale order automation" },
-    { icon: Users,        label: "Role-based team management" },
+    { icon: Users, label: "Role-based team management" },
 ];
 
 function PasswordStrength({ password }) {
     if (!password) return null;
-    const checks = [password.length >= 8, /[A-Z]/.test(password), /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)];
+    const checks = [
+        password.length >= 8,
+        /[A-Z]/.test(password),
+        /[0-9]/.test(password),
+        /[^A-Za-z0-9]/.test(password),
+    ];
     const score = checks.filter(Boolean).length;
     const levels = [
-        { label: "Weak",   color: "bg-destructive" },
-        { label: "Fair",   color: "bg-yellow-500" },
-        { label: "Good",   color: "bg-blue-500" },
+        { label: "Weak", color: "bg-destructive" },
+        { label: "Fair", color: "bg-yellow-500" },
+        { label: "Good", color: "bg-blue-500" },
         { label: "Strong", color: "bg-green-500" },
     ];
     const level = levels[Math.max(0, score - 1)];
@@ -57,7 +70,9 @@ function PasswordStrength({ password }) {
                     />
                 ))}
             </div>
-            <p className="text-xs text-muted-foreground">{level.label} password</p>
+            <p className="text-xs text-muted-foreground">
+                {level.label} password
+            </p>
         </div>
     );
 }
@@ -67,7 +82,12 @@ export default function SignupPage() {
     const { loading, error, successMessage } = useSelector((s) => s.auth);
     const [showPassword, setShowPassword] = useState(false);
 
-    const { register, handleSubmit, formState: { errors }, watch } = useForm({
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+        watch,
+    } = useForm({
         resolver: zodResolver(schema),
     });
     const password = watch("password", "");
@@ -82,13 +102,21 @@ export default function SignupPage() {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.92 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.45, ease: [0.21, 0.47, 0.32, 0.98] }}
+                    transition={{
+                        duration: 0.45,
+                        ease: [0.21, 0.47, 0.32, 0.98],
+                    }}
                     className="max-w-sm w-full text-center space-y-4"
                 >
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ delay: 0.15, type: "spring", stiffness: 280, damping: 22 }}
+                        transition={{
+                            delay: 0.15,
+                            type: "spring",
+                            stiffness: 280,
+                            damping: 22,
+                        }}
                         className="size-16 rounded-full bg-green-500/15 flex items-center justify-center mx-auto"
                     >
                         <CheckCircle className="size-8 text-green-500" />
@@ -136,25 +164,44 @@ export default function SignupPage() {
                         <h2 className="text-3xl font-bold leading-tight mb-3">
                             Start managing your supply chain today.
                         </h2>
-                        <p className="text-primary-foreground/80 leading-relaxed">Free to get started. No credit card required.</p>
+                        <p className="text-primary-foreground/80 leading-relaxed">
+                            Free to get started. No credit card required.
+                        </p>
                     </motion.div>
 
                     <motion.div
                         initial="hidden"
                         animate="visible"
-                        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.14, delayChildren: 0.6 } } }}
+                        variants={{
+                            hidden: {},
+                            visible: {
+                                transition: {
+                                    staggerChildren: 0.14,
+                                    delayChildren: 0.6,
+                                },
+                            },
+                        }}
                         className="space-y-4"
                     >
                         {features.map(({ icon: Icon, label }) => (
                             <motion.div
                                 key={label}
-                                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0, transition: { duration: 0.45 } } }}
+                                variants={{
+                                    hidden: { opacity: 0, x: -20 },
+                                    visible: {
+                                        opacity: 1,
+                                        x: 0,
+                                        transition: { duration: 0.45 },
+                                    },
+                                }}
                                 className="flex items-center gap-3"
                             >
                                 <div className="size-8 rounded-lg bg-primary-foreground/15 flex items-center justify-center shrink-0">
                                     <Icon className="size-4" />
                                 </div>
-                                <span className="text-sm text-primary-foreground/90">{label}</span>
+                                <span className="text-sm text-primary-foreground/90">
+                                    {label}
+                                </span>
                             </motion.div>
                         ))}
                     </motion.div>
@@ -196,15 +243,26 @@ export default function SignupPage() {
                     <motion.div
                         initial={{ opacity: 0, y: 24 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15, duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] }}
+                        transition={{
+                            delay: 0.15,
+                            duration: 0.5,
+                            ease: [0.21, 0.47, 0.32, 0.98],
+                        }}
                         className="w-full max-w-sm space-y-6"
                     >
                         <div className="space-y-1">
-                            <h1 className="text-2xl font-bold">Create your account</h1>
-                            <p className="text-sm text-muted-foreground">Start your free CoreChain account today</p>
+                            <h1 className="text-2xl font-bold">
+                                Create your account
+                            </h1>
+                            <p className="text-sm text-muted-foreground">
+                                Start your free CoreChain account today
+                            </p>
                         </div>
 
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <form
+                            onSubmit={handleSubmit(onSubmit)}
+                            className="space-y-4"
+                        >
                             {error && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -8 }}
@@ -217,45 +275,102 @@ export default function SignupPage() {
 
                             <div className="space-y-1.5">
                                 <Label htmlFor="fullName">Full name</Label>
-                                <Input id="fullName" placeholder="Jane Smith" {...register("fullName")} className={errors.fullName ? "border-destructive" : ""} />
-                                {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
+                                <Input
+                                    id="fullName"
+                                    placeholder="Jane Smith"
+                                    {...register("fullName")}
+                                    className={
+                                        errors.fullName
+                                            ? "border-destructive"
+                                            : ""
+                                    }
+                                />
+                                {errors.fullName && (
+                                    <p className="text-xs text-destructive">
+                                        {errors.fullName.message}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="email">Email address</Label>
-                                <Input id="email" type="email" placeholder="you@company.com" {...register("email")} className={errors.email ? "border-destructive" : ""} />
-                                {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="you@company.com"
+                                    {...register("email")}
+                                    className={
+                                        errors.email ? "border-destructive" : ""
+                                    }
+                                />
+                                {errors.email && (
+                                    <p className="text-xs text-destructive">
+                                        {errors.email.message}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="password">Password</Label>
                                 <div className="relative">
                                     <Input
                                         id="password"
-                                        type={showPassword ? "text" : "password"}
+                                        type={
+                                            showPassword ? "text" : "password"
+                                        }
                                         placeholder="Min. 8 characters"
                                         {...register("password")}
-                                        className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                                        className={
+                                            errors.password
+                                                ? "border-destructive pr-10"
+                                                : "pr-10"
+                                        }
                                     />
-                                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowPassword((v) => !v)}>
-                                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                    <button
+                                        type="button"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                        onClick={() =>
+                                            setShowPassword((v) => !v)
+                                        }
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="size-4" />
+                                        ) : (
+                                            <Eye className="size-4" />
+                                        )}
                                     </button>
                                 </div>
                                 {errors.password ? (
-                                    <p className="text-xs text-destructive">{errors.password.message}</p>
+                                    <p className="text-xs text-destructive">
+                                        {errors.password.message}
+                                    </p>
                                 ) : (
                                     <PasswordStrength password={password} />
                                 )}
                             </div>
 
-                            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                                <Button type="submit" className="w-full shadow-sm" disabled={loading}>
-                                    {loading ? "Creating account…" : "Create account"}
+                            <motion.div
+                                whileHover={{ scale: 1.01 }}
+                                whileTap={{ scale: 0.99 }}
+                            >
+                                <Button
+                                    type="submit"
+                                    className="w-full shadow-sm"
+                                    disabled={loading}
+                                >
+                                    {loading
+                                        ? "Creating account…"
+                                        : "Create account"}
                                 </Button>
                             </motion.div>
                         </form>
 
                         <p className="text-center text-sm text-muted-foreground">
                             Already have an account?{" "}
-                            <Link to="/login" className="text-primary font-medium hover:underline">Sign in</Link>
+                            <Link
+                                to="/login"
+                                className="text-primary font-medium hover:underline"
+                            >
+                                Sign in
+                            </Link>
                         </p>
                     </motion.div>
                 </div>

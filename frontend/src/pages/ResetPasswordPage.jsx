@@ -4,11 +4,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { resetPasswordThunk, clearAuthStatus } from "@/store/authSlice";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { resetPasswordThunk, clearAuthStatus } from "@/store/authSlice.js";
+import { Button } from "@/components/ui/button.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { ThemeToggle } from "@/components/theme-toggle.jsx";
 import { Eye, EyeOff, Link2, CheckCircle } from "lucide-react";
 
 const schema = z.object({
@@ -25,11 +25,16 @@ export default function ResetPasswordPage() {
     const { loading, error, successMessage } = useSelector((s) => s.auth);
     const [showPassword, setShowPassword] = useState(false);
 
-    const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({ resolver: zodResolver(schema) });
 
     useEffect(() => () => dispatch(clearAuthStatus()), [dispatch]);
 
-    const onSubmit = ({ password }) => dispatch(resetPasswordThunk({ token, password }));
+    const onSubmit = ({ password }) =>
+        dispatch(resetPasswordThunk({ token, password }));
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
@@ -51,38 +56,82 @@ export default function ResetPasswordPage() {
                                 <CheckCircle className="size-8 text-green-500" />
                             </div>
                             <div className="space-y-1">
-                                <h1 className="text-2xl font-bold">Password updated</h1>
-                                <p className="text-sm text-muted-foreground">{successMessage}</p>
+                                <h1 className="text-2xl font-bold">
+                                    Password updated
+                                </h1>
+                                <p className="text-sm text-muted-foreground">
+                                    {successMessage}
+                                </p>
                             </div>
-                            <Button asChild className="w-full"><Link to="/login">Sign in now</Link></Button>
+                            <Button asChild className="w-full">
+                                <Link to="/login">Sign in now</Link>
+                            </Button>
                         </div>
                     ) : (
                         <>
                             <div className="space-y-1">
-                                <h1 className="text-2xl font-bold">Set new password</h1>
-                                <p className="text-sm text-muted-foreground">Choose a strong password for your CoreChain account.</p>
+                                <h1 className="text-2xl font-bold">
+                                    Set new password
+                                </h1>
+                                <p className="text-sm text-muted-foreground">
+                                    Choose a strong password for your CoreChain
+                                    account.
+                                </p>
                             </div>
-                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                            <form
+                                onSubmit={handleSubmit(onSubmit)}
+                                className="space-y-4"
+                            >
                                 {error && (
-                                    <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">{error}</div>
+                                    <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
+                                        {error}
+                                    </div>
                                 )}
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="password">New password</Label>
+                                    <Label htmlFor="password">
+                                        New password
+                                    </Label>
                                     <div className="relative">
                                         <Input
                                             id="password"
-                                            type={showPassword ? "text" : "password"}
+                                            type={
+                                                showPassword
+                                                    ? "text"
+                                                    : "password"
+                                            }
                                             placeholder="Min. 8 characters"
                                             {...register("password")}
-                                            className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                                            className={
+                                                errors.password
+                                                    ? "border-destructive pr-10"
+                                                    : "pr-10"
+                                            }
                                         />
-                                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword((v) => !v)}>
-                                            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                        <button
+                                            type="button"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                            onClick={() =>
+                                                setShowPassword((v) => !v)
+                                            }
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="size-4" />
+                                            ) : (
+                                                <Eye className="size-4" />
+                                            )}
                                         </button>
                                     </div>
-                                    {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+                                    {errors.password && (
+                                        <p className="text-xs text-destructive">
+                                            {errors.password.message}
+                                        </p>
+                                    )}
                                 </div>
-                                <Button type="submit" className="w-full" disabled={loading}>
+                                <Button
+                                    type="submit"
+                                    className="w-full"
+                                    disabled={loading}
+                                >
                                     {loading ? "Updating…" : "Update password"}
                                 </Button>
                             </form>

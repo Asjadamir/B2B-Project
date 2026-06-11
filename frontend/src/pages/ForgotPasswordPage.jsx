@@ -4,11 +4,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { forgotPasswordThunk, clearAuthStatus } from "@/store/authSlice";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { forgotPasswordThunk, clearAuthStatus } from "@/store/authSlice.js";
+import { Button } from "@/components/ui/button.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { ThemeToggle } from "@/components/theme-toggle.jsx";
 import { ArrowLeft, Link2, Mail } from "lucide-react";
 
 const schema = z.object({
@@ -19,7 +19,11 @@ export default function ForgotPasswordPage() {
     const dispatch = useDispatch();
     const { loading, error, successMessage } = useSelector((s) => s.auth);
 
-    const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({ resolver: zodResolver(schema) });
 
     useEffect(() => () => dispatch(clearAuthStatus()), [dispatch]);
 
@@ -39,8 +43,15 @@ export default function ForgotPasswordPage() {
 
             <div className="flex-1 flex items-center justify-center px-6 py-12">
                 <div className="w-full max-w-sm space-y-6">
-                    <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground" asChild>
-                        <Link to="/login"><ArrowLeft className="size-3.5" /> Back to sign in</Link>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 -ml-2 text-muted-foreground"
+                        asChild
+                    >
+                        <Link to="/login">
+                            <ArrowLeft className="size-3.5" /> Back to sign in
+                        </Link>
                     </Button>
 
                     {successMessage ? (
@@ -49,29 +60,65 @@ export default function ForgotPasswordPage() {
                                 <Mail className="size-6 text-primary" />
                             </div>
                             <div className="space-y-1">
-                                <h1 className="text-2xl font-bold">Check your email</h1>
-                                <p className="text-sm text-muted-foreground">{successMessage}</p>
+                                <h1 className="text-2xl font-bold">
+                                    Check your email
+                                </h1>
+                                <p className="text-sm text-muted-foreground">
+                                    {successMessage}
+                                </p>
                             </div>
-                            <Button variant="outline" className="w-full" asChild>
+                            <Button
+                                variant="outline"
+                                className="w-full"
+                                asChild
+                            >
                                 <Link to="/login">Back to sign in</Link>
                             </Button>
                         </div>
                     ) : (
                         <>
                             <div className="space-y-1">
-                                <h1 className="text-2xl font-bold">Reset your password</h1>
-                                <p className="text-sm text-muted-foreground">Enter your email and we&apos;ll send you a reset link.</p>
+                                <h1 className="text-2xl font-bold">
+                                    Reset your password
+                                </h1>
+                                <p className="text-sm text-muted-foreground">
+                                    Enter your email and we&apos;ll send you a
+                                    reset link.
+                                </p>
                             </div>
-                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                            <form
+                                onSubmit={handleSubmit(onSubmit)}
+                                className="space-y-4"
+                            >
                                 {error && (
-                                    <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">{error}</div>
+                                    <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
+                                        {error}
+                                    </div>
                                 )}
                                 <div className="space-y-1.5">
                                     <Label htmlFor="email">Email address</Label>
-                                    <Input id="email" type="email" placeholder="you@company.com" {...register("email")} className={errors.email ? "border-destructive" : ""} />
-                                    {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="you@company.com"
+                                        {...register("email")}
+                                        className={
+                                            errors.email
+                                                ? "border-destructive"
+                                                : ""
+                                        }
+                                    />
+                                    {errors.email && (
+                                        <p className="text-xs text-destructive">
+                                            {errors.email.message}
+                                        </p>
+                                    )}
                                 </div>
-                                <Button type="submit" className="w-full" disabled={loading}>
+                                <Button
+                                    type="submit"
+                                    className="w-full"
+                                    disabled={loading}
+                                >
                                     {loading ? "Sending…" : "Send reset link"}
                                 </Button>
                             </form>

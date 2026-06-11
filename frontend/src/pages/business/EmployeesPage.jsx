@@ -4,20 +4,20 @@ import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { fetchEmployees, inviteEmployeeThunk, updateEmployeeRoleThunk, removeEmployeeThunk, fetchPendingInvitesThunk, cancelInviteThunk } from "@/store/employeeSlice";
-import * as api from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
+import { fetchEmployees, inviteEmployeeThunk, updateEmployeeRoleThunk, removeEmployeeThunk, fetchPendingInvitesThunk, cancelInviteThunk } from "@/store/employeeSlice.js";
+import * as api from "@/lib/api.js";
+import { Button } from "@/components/ui/button.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { Badge } from "@/components/ui/badge.jsx";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.jsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.jsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.jsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
+import { Skeleton } from "@/components/ui/skeleton.jsx";
 import { UserPlus, Trash2, Pencil, Users, Clock, Mail, X, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import { ROLES, ALL_ROLES } from "@/lib/constants";
+import { ROLES, ALL_ROLES } from "@/lib/constants.js";
 
 const inviteSchema = z.object({
     email: z.string().email("Valid email required"),
