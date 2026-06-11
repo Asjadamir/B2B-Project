@@ -49,6 +49,15 @@ const authQueries = {
         return result.recordset[0];
     },
 
+    getVerifyTokenByUserId: async (userId) => {
+        const request = new sql.Request();
+        request.input("UserID", sql.Int, userId);
+        const result = await request.query(
+            "SELECT * FROM VerifyTokens WHERE UserID = @UserID",
+        );
+        return result.recordset[0];
+    },
+
     deleteVerifyToken: async (token) => {
         const request = new sql.Request();
         request.input("Token", sql.VarChar(64), token);

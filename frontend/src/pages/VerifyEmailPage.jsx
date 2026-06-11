@@ -17,7 +17,7 @@ export default function VerifyEmailPage() {
 
     useEffect(() => {
         if (successMessage) {
-            const timer = setTimeout(() => navigate("/dashboard"), 2000);
+            const timer = setTimeout(() => navigate("/login"), 2000);
             return () => clearTimeout(timer);
         }
     }, [successMessage, navigate]);
@@ -35,7 +35,7 @@ export default function VerifyEmailPage() {
                     )}
                     {successMessage && (
                         <p className="text-sm text-green-400 bg-green-400/10 border border-green-400/20 rounded-md px-3 py-2">
-                            {successMessage} Redirecting to dashboard…
+                            {successMessage} Redirecting to login…
                         </p>
                     )}
                     {error && (

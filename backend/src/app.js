@@ -25,6 +25,7 @@ import auditLogControllers from "./modules/auditLog/auditLog.controller.js";
 import auditLogRoutes from "./modules/auditLog/auditLog.routes.js";
 import inventoryControllers from "./modules/inventory/inventory.controllers.js";
 import inventoryRoutes from "./modules/inventory/inventory.routes.js";
+import errorMiddleware from "./middlewares/error.middleware.js";
 
 await connectMSSQL();
 
@@ -50,9 +51,6 @@ app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
-app.use((err, req, res, next) => {
-    console.error("Unhandled error:", err);
-    res.status(500).json({ message: "Internal server error." });
-});
+app.use(errorMiddleware);
 
 export default app;
