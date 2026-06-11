@@ -20,5 +20,4 @@ export default defineConfig({
             "/api": "http://localhost:5000",
         },
     },
-    base: process.env.VITE_BASE_PATH || "/",
 });
