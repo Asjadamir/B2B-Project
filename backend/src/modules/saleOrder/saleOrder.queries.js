@@ -17,7 +17,7 @@ const saleOrderQueries = {
         const request = new sql.Request();
         request.input("WarehouseID", sql.Int, warehouseId);
         const result = await request.query(
-            "SELECT * FROM Warehouse WHERE WarehouseID = @WarehouseID AND IsActive = 1"
+            "SELECT * FROM Warehouse WHERE WarehouseID = @WarehouseID AND IsActive = 1",
         );
         return result.recordset[0];
     },
@@ -45,7 +45,7 @@ const saleOrderQueries = {
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("ProductID", sql.Int, productId);
         const result = await request.query(
-            "SELECT * FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID"
+            "SELECT * FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID",
         );
         return result.recordset[0];
     },
@@ -54,7 +54,7 @@ const saleOrderQueries = {
         const request = new sql.Request();
         request.input("ProductID", sql.Int, productId);
         const result = await request.query(
-            "SELECT * FROM Product WHERE ProductID = @ProductID AND IsActive = 1"
+            "SELECT * FROM Product WHERE ProductID = @ProductID AND IsActive = 1",
         );
         return result.recordset[0];
     },
@@ -116,7 +116,7 @@ const saleOrderQueries = {
         const request = new sql.Request();
         request.input("SOItemID", sql.Int, itemId);
         const result = await request.query(
-            "SELECT * FROM SaleOrderItem WHERE SOItemID = @SOItemID"
+            "SELECT * FROM SaleOrderItem WHERE SOItemID = @SOItemID",
         );
         return result.recordset[0];
     },
@@ -126,24 +126,35 @@ const saleOrderQueries = {
         request.input("SOID", sql.Int, soId);
         request.input("ProductID", sql.Int, productId);
         const result = await request.query(
-            "SELECT TOP 1 1 AS Found FROM SaleOrderItem WHERE SOID = @SOID AND ProductID = @ProductID"
+            "SELECT TOP 1 1 AS Found FROM SaleOrderItem WHERE SOID = @SOID AND ProductID = @ProductID",
         );
         return result.recordset.length > 0;
     },
 
-    createSO: async (businessId, warehouseId, customerName, customerContact, customerAddress, createdBy) => {
+    createSO: async (
+        businessId,
+        warehouseId,
+        customerName,
+        customerContact,
+        customerAddress,
+        createdBy,
+    ) => {
         const request = new sql.Request();
         request.input("BusinessID", sql.Int, businessId);
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("CustomerName", sql.NVarChar(255), customerName);
-        request.input("CustomerContact", sql.VarChar(50), customerContact ?? null);
-        request.input("CustomerAddress", sql.NVarChar(500), customerAddress ?? null);
+        request.input(
+            "CustomerContact",
+            sql.VarChar(50),
+            customerContact ?? null,
+        );
+        request.input(
+            "CustomerAddress",
+            sql.NVarChar(500),
+            customerAddress ?? null,
+        );
         request.input("CreatedBy", sql.Int, createdBy);
-        const result = await request.query(`
-            INSERT INTO SaleOrder (BusinessID, WarehouseID, CustomerName, CustomerContact, CustomerAddress, CreatedBy)
-            OUTPUT INSERTED.SOID
-            VALUES (@BusinessID, @WarehouseID, @CustomerName, @CustomerContact, @CustomerAddress, @CreatedBy)
-        `);
+        const result = await request.execute("sp_CreateSO");
         return result.recordset[0].SOID;
     },
 
@@ -153,11 +164,7 @@ const saleOrderQueries = {
         request.input("ProductID", sql.Int, productId);
         request.input("Quantity", sql.Int, quantity);
         request.input("UnitPrice", sql.Decimal(10, 2), unitPrice);
-        const result = await request.query(`
-            INSERT INTO SaleOrderItem (SOID, ProductID, Quantity, UnitPrice)
-            OUTPUT INSERTED.SOItemID
-            VALUES (@SOID, @ProductID, @Quantity, @UnitPrice)
-        `);
+        const result = await request.execute("sp_AddSOItem");
         return result.recordset[0].SOItemID;
     },
 
@@ -167,14 +174,16 @@ const saleOrderQueries = {
         request.input("Quantity", sql.Int, quantity);
         request.input("UnitPrice", sql.Decimal(10, 2), unitPrice);
         await request.query(
-            "UPDATE SaleOrderItem SET Quantity = @Quantity, UnitPrice = @UnitPrice WHERE SOItemID = @SOItemID"
+            "UPDATE SaleOrderItem SET Quantity = @Quantity, UnitPrice = @UnitPrice WHERE SOItemID = @SOItemID",
         );
     },
 
     deleteSOItem: async (itemId) => {
         const request = new sql.Request();
         request.input("SOItemID", sql.Int, itemId);
-        await request.query("DELETE FROM SaleOrderItem WHERE SOItemID = @SOItemID");
+        await request.query(
+            "DELETE FROM SaleOrderItem WHERE SOItemID = @SOItemID",
+        );
     },
 
     updateSOStatus: async (soId, status) => {
@@ -182,7 +191,7 @@ const saleOrderQueries = {
         request.input("SOID", sql.Int, soId);
         request.input("Status", sql.VarChar(20), status);
         await request.query(
-            "UPDATE SaleOrder SET Status = @Status WHERE SOID = @SOID"
+            "UPDATE SaleOrder SET Status = @Status WHERE SOID = @SOID",
         );
     },
 
@@ -190,12 +199,9 @@ const saleOrderQueries = {
         const request = new sql.Request();
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("ProductID", sql.Int, productId);
-        request.input("Quantity", sql.Int, quantity);
-        await request.query(`
-            UPDATE Inventory
-            SET Quantity = Quantity - @Quantity
-            WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID
-        `);
+        // use sp_UpsertInventory with a negative quantity to safely decrement
+        request.input("QuantityChange", sql.Int, -quantity);
+        await request.execute("sp_UpsertInventory");
     },
 };
 

@@ -20,28 +20,42 @@ const authControllers = {
         const { fullName, email, password } = req.body;
 
         if (!fullName || !email || !password) {
-            return res.status(400).json({ message: "All fields are required." });
+            return res
+                .status(400)
+                .json({ message: "All fields are required." });
         }
 
         const existingUser = await queries.findUserByEmail(email);
 
         if (existingUser && existingUser.IsVerified) {
-            return res.status(409).json({ message: "Email is already registered." });
+            return res
+                .status(409)
+                .json({ message: "Email is already registered." });
         }
 
         const passwordHash = await bcrypt.hash(password, 12);
         const token = crypto.randomBytes(32).toString("hex");
 
         if (existingUser && !existingUser.IsVerified) {
-            const existingToken = await queries.getVerifyTokenByUserId(existingUser.UserID);
+            const existingToken = await queries.getVerifyTokenByUserId(
+                existingUser.UserID,
+            );
 
-            if (existingToken && new Date() < new Date(existingToken.ValidTill)) {
+            if (
+                existingToken &&
+                new Date() < new Date(existingToken.ValidTill)
+            ) {
                 return res.status(200).json({
-                    message: "A verification email has already been sent. Please check your inbox.",
+                    message:
+                        "A verification email has already been sent. Please check your inbox.",
                 });
             }
 
-            await queries.updateUnverifiedUser(existingUser.UserID, fullName, passwordHash);
+            await queries.updateUnverifiedUser(
+                existingUser.UserID,
+                fullName,
+                passwordHash,
+            );
             await queries.deleteVerifyTokensByUserId(existingUser.UserID);
             await queries.createVerifyToken(
                 existingUser.UserID,
@@ -62,7 +76,9 @@ const authControllers = {
                 `,
             });
 
-            return res.status(200).json({ message: "A new verification link has been sent to your email." });
+            return res.status(200).json({
+                message: "A new verification link has been sent to your email.",
+            });
         }
 
         const userId = await queries.createUser(fullName, email, passwordHash);
@@ -86,7 +102,8 @@ const authControllers = {
         });
 
         return res.status(201).json({
-            message: "Account created. Please check your email to verify your account.",
+            message:
+                "Account created. Please check your email to verify your account.",
         });
     }),
 
@@ -94,22 +111,29 @@ const authControllers = {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ message: "Email and password are required." });
+            return res
+                .status(400)
+                .json({ message: "Email and password are required." });
         }
 
         const user = await queries.findUserByEmail(email);
         if (!user) {
-            return res.status(401).json({ message: "Invalid email or password." });
+            return res
+                .status(401)
+                .json({ message: "Invalid email or password." });
         }
 
         const isMatch = await bcrypt.compare(password, user.PasswordHash);
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password." });
+            return res
+                .status(401)
+                .json({ message: "Invalid email or password." });
         }
 
         if (!user.IsVerified) {
             return res.status(401).json({
-                message: "Email is not registered or verified. Please sign up again.",
+                message:
+                    "Email is not registered or verified. Please sign up again.",
             });
         }
 
@@ -122,7 +146,7 @@ const authControllers = {
         res.cookie("token", jwtToken, {
             httpOnly: true,
             secure: env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: env.NODE_ENV === "production" ? "none" : "strict",
             maxAge: 24 * 60 * 60 * 1000,
         });
 
@@ -140,7 +164,7 @@ const authControllers = {
         res.clearCookie("token", {
             httpOnly: true,
             secure: env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: env.NODE_ENV === "production" ? "none" : "strict",
         });
         return res.status(200).json({ message: "Logged out successfully." });
     }),
@@ -150,7 +174,9 @@ const authControllers = {
 
         const record = await queries.getVerifyToken(token);
         if (!record) {
-            return res.status(400).json({ message: "Invalid verification link." });
+            return res
+                .status(400)
+                .json({ message: "Invalid verification link." });
         }
 
         if (new Date() > new Date(record.ValidTill)) {
@@ -193,7 +219,8 @@ const authControllers = {
 
         if (!user || !user.IsVerified) {
             return res.status(404).json({
-                message: "Email is not registered or verified. Please sign up again.",
+                message:
+                    "Email is not registered or verified. Please sign up again.",
             });
         }
 
@@ -227,12 +254,16 @@ const authControllers = {
         const { password } = req.body;
 
         if (!password) {
-            return res.status(400).json({ message: "New password is required." });
+            return res
+                .status(400)
+                .json({ message: "New password is required." });
         }
 
         const record = await queries.getResetToken(token);
         if (!record) {
-            return res.status(400).json({ message: "Invalid or expired reset link." });
+            return res
+                .status(400)
+                .json({ message: "Invalid or expired reset link." });
         }
 
         if (new Date() > new Date(record.ValidTill)) {

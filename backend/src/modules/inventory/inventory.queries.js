@@ -65,40 +65,26 @@ const inventoryQueries = {
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("ProductID", sql.Int, productId);
         request.input("Quantity", sql.Int, newQuantity);
-        await request.query(`
-            IF EXISTS (SELECT 1 FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID)
-                UPDATE Inventory SET Quantity = @Quantity, LastUpdated = GETDATE()
-                WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID
-            ELSE
-                INSERT INTO Inventory (WarehouseID, ProductID, Quantity, LowStockThreshold)
-                VALUES (@WarehouseID, @ProductID, @Quantity, 10)
-        `);
+        const result = await request.execute("sp_SetInventory");
+        return result.recordset[0]?.NewQuantity;
     },
 
     decrementStock: async (warehouseId, productId, quantity) => {
         const request = new sql.Request();
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("ProductID", sql.Int, productId);
-        request.input("Quantity", sql.Int, quantity);
-        await request.query(`
-            UPDATE Inventory SET Quantity = Quantity - @Quantity, LastUpdated = GETDATE()
-            WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID
-        `);
+        request.input("QuantityChange", sql.Int, -quantity);
+        const result = await request.execute("sp_UpsertInventory");
+        return result.recordset[0]?.NewQuantity;
     },
 
     incrementStock: async (warehouseId, productId, quantity) => {
         const request = new sql.Request();
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("ProductID", sql.Int, productId);
-        request.input("Quantity", sql.Int, quantity);
-        await request.query(`
-            IF EXISTS (SELECT 1 FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID)
-                UPDATE Inventory SET Quantity = Quantity + @Quantity, LastUpdated = GETDATE()
-                WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID
-            ELSE
-                INSERT INTO Inventory (WarehouseID, ProductID, Quantity, LowStockThreshold)
-                VALUES (@WarehouseID, @ProductID, @Quantity, 10)
-        `);
+        request.input("QuantityChange", sql.Int, quantity);
+        const result = await request.execute("sp_UpsertInventory");
+        return result.recordset[0]?.NewQuantity;
     },
 };
 

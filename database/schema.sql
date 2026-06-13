@@ -472,3 +472,299 @@ BEGIN
     SELECT SCOPE_IDENTITY() AS BusinessID;
 END;
 GO
+
+-- ============================================================
+--  Additional stored procedures, functions and triggers
+-- ============================================================
+
+-- Create Product
+CREATE PROCEDURE sp_CreateProduct
+    @ProductName VARCHAR(150),
+    @SKU VARCHAR(100),
+    @CategoryID INT,
+    @UnitOfMeasure VARCHAR(50),
+    @SellingPrice DECIMAL(12,2),
+    @BusinessID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Product (ProductName, SKU, CategoryID, UnitOfMeasure, SellingPrice, BusinessID)
+    OUTPUT INSERTED.ProductID
+    VALUES (@ProductName, @SKU, @CategoryID, @UnitOfMeasure, @SellingPrice, @BusinessID);
+END;
+GO
+
+-- Update Product
+CREATE PROCEDURE sp_UpdateProduct
+    @ProductID INT,
+    @ProductName VARCHAR(150),
+    @SKU VARCHAR(100),
+    @CategoryID INT,
+    @UnitOfMeasure VARCHAR(50),
+    @SellingPrice DECIMAL(12,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Product
+    SET ProductName = @ProductName,
+        SKU = @SKU,
+        CategoryID = @CategoryID,
+        UnitOfMeasure = @UnitOfMeasure,
+        SellingPrice = @SellingPrice
+    WHERE ProductID = @ProductID;
+END;
+GO
+
+-- Link / Unlink supplier
+CREATE PROCEDURE sp_LinkSupplier
+    @ProductID INT,
+    @SupplierID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM Product_Supplier WHERE ProductID = @ProductID AND SupplierID = @SupplierID)
+    BEGIN
+        INSERT INTO Product_Supplier (ProductID, SupplierID)
+        VALUES (@ProductID, @SupplierID);
+    END
+END;
+GO
+
+CREATE PROCEDURE sp_UnlinkSupplier
+    @ProductID INT,
+    @SupplierID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM Product_Supplier WHERE ProductID = @ProductID AND SupplierID = @SupplierID;
+END;
+GO
+
+-- Upsert inventory by change amount. Prevents negative stock.
+CREATE PROCEDURE sp_UpsertInventory
+    @WarehouseID INT,
+    @ProductID INT,
+    @QuantityChange INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        IF EXISTS (SELECT 1 FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID)
+        BEGIN
+            UPDATE Inventory
+            SET Quantity = Quantity + @QuantityChange,
+                LastUpdated = GETDATE()
+            WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID;
+        END
+        ELSE
+        BEGIN
+            INSERT INTO Inventory (WarehouseID, ProductID, Quantity, LowStockThreshold, LastUpdated)
+            VALUES (@WarehouseID, @ProductID, @QuantityChange, 10, GETDATE());
+        END;
+
+        DECLARE @NewQuantity INT = (SELECT Quantity FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID);
+        IF @NewQuantity < 0
+        BEGIN
+            ROLLBACK TRANSACTION;
+            RAISERROR('Operation would result in negative stock', 16, 1);
+            RETURN;
+        END;
+
+        COMMIT TRANSACTION;
+        SELECT @NewQuantity AS NewQuantity;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE();
+        RAISERROR(@ErrMsg, 16, 1);
+    END CATCH
+END;
+GO
+
+-- Set inventory to an absolute value
+CREATE PROCEDURE sp_SetInventory
+    @WarehouseID INT,
+    @ProductID INT,
+    @Quantity INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID)
+    BEGIN
+        UPDATE Inventory
+        SET Quantity = @Quantity, LastUpdated = GETDATE()
+        WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO Inventory (WarehouseID, ProductID, Quantity, LowStockThreshold, LastUpdated)
+        VALUES (@WarehouseID, @ProductID, @Quantity, 10, GETDATE());
+    END
+    SELECT (SELECT Quantity FROM Inventory WHERE WarehouseID = @WarehouseID AND ProductID = @ProductID) AS NewQuantity;
+END;
+GO
+
+-- Purchase order helpers
+CREATE PROCEDURE sp_CreatePO
+    @SupplierID INT,
+    @WarehouseID INT,
+    @CreatedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO PurchaseOrder (SupplierID, WarehouseID, CreatedBy)
+    OUTPUT INSERTED.POID
+    VALUES (@SupplierID, @WarehouseID, @CreatedBy);
+END;
+GO
+
+CREATE PROCEDURE sp_AddPOItem
+    @POID INT,
+    @ProductID INT,
+    @Quantity INT,
+    @UnitCost DECIMAL(12,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO PurchaseOrderItem (POID, ProductID, Quantity, UnitCost)
+    OUTPUT INSERTED.POItemID
+    VALUES (@POID, @ProductID, @Quantity, @UnitCost);
+END;
+GO
+
+-- Sale order helpers
+CREATE PROCEDURE sp_CreateSO
+    @BusinessID INT,
+    @WarehouseID INT,
+    @CustomerName VARCHAR(150),
+    @CustomerContact VARCHAR(20),
+    @CustomerAddress VARCHAR(255),
+    @CreatedBy INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO SaleOrder (BusinessID, WarehouseID, CustomerName, CustomerContact, CustomerAddress, CreatedBy)
+    OUTPUT INSERTED.SOID
+    VALUES (@BusinessID, @WarehouseID, @CustomerName, @CustomerContact, @CustomerAddress, @CreatedBy);
+END;
+GO
+
+CREATE PROCEDURE sp_AddSOItem
+    @SOID INT,
+    @ProductID INT,
+    @Quantity INT,
+    @UnitPrice DECIMAL(12,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO SaleOrderItem (SOID, ProductID, Quantity, UnitPrice)
+    OUTPUT INSERTED.SOItemID
+    VALUES (@SOID, @ProductID, @Quantity, @UnitPrice);
+END;
+GO
+
+-- Audit triggers: record CRUD on important tables
+CREATE TRIGGER tr_Audit_Product
+ON Product
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Action VARCHAR(10);
+    IF EXISTS(SELECT 1 FROM inserted) AND EXISTS(SELECT 1 FROM deleted) SET @Action = 'Update';
+    ELSE IF EXISTS(SELECT 1 FROM inserted) SET @Action = 'Insert';
+    ELSE SET @Action = 'Delete';
+
+    INSERT INTO AuditLog (BusinessID, ActorID, Action, EntityType, EntityID, Details)
+    SELECT
+        i.BusinessID,
+        CAST(SESSION_CONTEXT(N'actor_id') AS INT),
+        @Action,
+        'Product',
+        COALESCE(i.ProductID, d.ProductID),
+        CASE WHEN @Action = 'Delete' THEN CONCAT('Deleted product ', d.ProductName)
+             WHEN @Action = 'Insert' THEN CONCAT('Inserted product ', i.ProductName)
+             ELSE CONCAT('Updated from ', d.ProductName, ' to ', i.ProductName)
+        END
+    FROM inserted i
+    FULL OUTER JOIN deleted d ON i.ProductID = d.ProductID;
+END;
+GO
+
+CREATE TRIGGER tr_Audit_Inventory
+ON Inventory
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Action VARCHAR(10);
+    IF EXISTS(SELECT 1 FROM inserted) AND EXISTS(SELECT 1 FROM deleted) SET @Action = 'Update';
+    ELSE IF EXISTS(SELECT 1 FROM inserted) SET @Action = 'Insert';
+    ELSE SET @Action = 'Delete';
+
+    INSERT INTO AuditLog (BusinessID, ActorID, Action, EntityType, EntityID, Details)
+    SELECT
+        b.BusinessID,
+        CAST(SESSION_CONTEXT(N'actor_id') AS INT),
+        @Action,
+        'Inventory',
+        COALESCE(i.ProductID, d.ProductID),
+        CONCAT('Warehouse=', COALESCE(CAST(COALESCE(i.WarehouseID, d.WarehouseID) AS VARCHAR(10)),''), ', Qty=', COALESCE(CAST(COALESCE(i.Quantity, d.Quantity) AS VARCHAR(20)),''))
+    FROM inserted i
+    FULL OUTER JOIN deleted d ON i.WarehouseID = d.WarehouseID AND i.ProductID = d.ProductID
+    LEFT JOIN Warehouse w ON COALESCE(i.WarehouseID, d.WarehouseID) = w.WarehouseID
+    LEFT JOIN Business b ON w.BusinessID = b.BusinessID;
+END;
+GO
+
+CREATE TRIGGER tr_Audit_PurchaseOrder
+ON PurchaseOrder
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Action VARCHAR(10);
+    IF EXISTS(SELECT 1 FROM inserted) AND EXISTS(SELECT 1 FROM deleted) SET @Action = 'Update';
+    ELSE IF EXISTS(SELECT 1 FROM inserted) SET @Action = 'Insert';
+    ELSE SET @Action = 'Delete';
+
+    INSERT INTO AuditLog (BusinessID, ActorID, Action, EntityType, EntityID, Details)
+    SELECT
+        s.BusinessID,
+        CAST(SESSION_CONTEXT(N'actor_id') AS INT),
+        @Action,
+        'PurchaseOrder',
+        COALESCE(i.POID, d.POID),
+        CONCAT('Status=', COALESCE(i.Status,d.Status))
+    FROM inserted i
+    FULL OUTER JOIN deleted d ON i.POID = d.POID
+    LEFT JOIN Supplier s ON COALESCE(i.SupplierID, d.SupplierID) = s.SupplierID;
+END;
+GO
+
+CREATE TRIGGER tr_Audit_SaleOrder
+ON SaleOrder
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Action VARCHAR(10);
+    IF EXISTS(SELECT 1 FROM inserted) AND EXISTS(SELECT 1 FROM deleted) SET @Action = 'Update';
+    ELSE IF EXISTS(SELECT 1 FROM inserted) SET @Action = 'Insert';
+    ELSE SET @Action = 'Delete';
+
+    INSERT INTO AuditLog (BusinessID, ActorID, Action, EntityType, EntityID, Details)
+    SELECT
+        so.BusinessID,
+        CAST(SESSION_CONTEXT(N'actor_id') AS INT),
+        @Action,
+        'SaleOrder',
+        COALESCE(i.SOID, d.SOID),
+        CONCAT('Status=', COALESCE(i.Status,d.Status))
+    FROM inserted i
+    FULL OUTER JOIN deleted d ON i.SOID = d.SOID
+    LEFT JOIN SaleOrder so ON COALESCE(i.SOID, d.SOID) = so.SOID;
+END;
+GO

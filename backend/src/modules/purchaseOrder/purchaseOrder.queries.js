@@ -17,7 +17,7 @@ const purchaseOrderQueries = {
         const request = new sql.Request();
         request.input("SupplierID", sql.Int, supplierId);
         const result = await request.query(
-            "SELECT * FROM Supplier WHERE SupplierID = @SupplierID AND IsActive = 1"
+            "SELECT * FROM Supplier WHERE SupplierID = @SupplierID AND IsActive = 1",
         );
         return result.recordset[0];
     },
@@ -26,7 +26,7 @@ const purchaseOrderQueries = {
         const request = new sql.Request();
         request.input("WarehouseID", sql.Int, warehouseId);
         const result = await request.query(
-            "SELECT * FROM Warehouse WHERE WarehouseID = @WarehouseID AND IsActive = 1"
+            "SELECT * FROM Warehouse WHERE WarehouseID = @WarehouseID AND IsActive = 1",
         );
         return result.recordset[0];
     },
@@ -52,7 +52,7 @@ const purchaseOrderQueries = {
         request.input("ProductID", sql.Int, productId);
         request.input("SupplierID", sql.Int, supplierId);
         const result = await request.query(
-            "SELECT TOP 1 1 AS Found FROM Product_Supplier WHERE ProductID = @ProductID AND SupplierID = @SupplierID"
+            "SELECT TOP 1 1 AS Found FROM Product_Supplier WHERE ProductID = @ProductID AND SupplierID = @SupplierID",
         );
         return result.recordset.length > 0;
     },
@@ -61,7 +61,7 @@ const purchaseOrderQueries = {
         const request = new sql.Request();
         request.input("ProductID", sql.Int, productId);
         const result = await request.query(
-            "SELECT * FROM Product WHERE ProductID = @ProductID AND IsActive = 1"
+            "SELECT * FROM Product WHERE ProductID = @ProductID AND IsActive = 1",
         );
         return result.recordset[0];
     },
@@ -124,7 +124,7 @@ const purchaseOrderQueries = {
         const request = new sql.Request();
         request.input("POItemID", sql.Int, itemId);
         const result = await request.query(
-            "SELECT * FROM PurchaseOrderItem WHERE POItemID = @POItemID"
+            "SELECT * FROM PurchaseOrderItem WHERE POItemID = @POItemID",
         );
         return result.recordset[0];
     },
@@ -134,7 +134,7 @@ const purchaseOrderQueries = {
         request.input("POID", sql.Int, poId);
         request.input("ProductID", sql.Int, productId);
         const result = await request.query(
-            "SELECT TOP 1 1 AS Found FROM PurchaseOrderItem WHERE POID = @POID AND ProductID = @ProductID"
+            "SELECT TOP 1 1 AS Found FROM PurchaseOrderItem WHERE POID = @POID AND ProductID = @ProductID",
         );
         return result.recordset.length > 0;
     },
@@ -144,11 +144,7 @@ const purchaseOrderQueries = {
         request.input("SupplierID", sql.Int, supplierId);
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("CreatedBy", sql.Int, createdBy);
-        const result = await request.query(`
-            INSERT INTO PurchaseOrder (SupplierID, WarehouseID, CreatedBy)
-            OUTPUT INSERTED.POID
-            VALUES (@SupplierID, @WarehouseID, @CreatedBy)
-        `);
+        const result = await request.execute("sp_CreatePO");
         return result.recordset[0].POID;
     },
 
@@ -158,11 +154,7 @@ const purchaseOrderQueries = {
         request.input("ProductID", sql.Int, productId);
         request.input("Quantity", sql.Int, quantity);
         request.input("UnitCost", sql.Decimal(10, 2), unitCost);
-        const result = await request.query(`
-            INSERT INTO PurchaseOrderItem (POID, ProductID, Quantity, UnitCost)
-            OUTPUT INSERTED.POItemID
-            VALUES (@POID, @ProductID, @Quantity, @UnitCost)
-        `);
+        const result = await request.execute("sp_AddPOItem");
         return result.recordset[0].POItemID;
     },
 
@@ -181,7 +173,9 @@ const purchaseOrderQueries = {
     deletePOItem: async (itemId) => {
         const request = new sql.Request();
         request.input("POItemID", sql.Int, itemId);
-        await request.query("DELETE FROM PurchaseOrderItem WHERE POItemID = @POItemID");
+        await request.query(
+            "DELETE FROM PurchaseOrderItem WHERE POItemID = @POItemID",
+        );
     },
 
     updatePOStatus: async (poId, status) => {
@@ -189,7 +183,7 @@ const purchaseOrderQueries = {
         request.input("POID", sql.Int, poId);
         request.input("Status", sql.VarChar(20), status);
         await request.query(
-            "UPDATE PurchaseOrder SET Status = @Status WHERE POID = @POID"
+            "UPDATE PurchaseOrder SET Status = @Status WHERE POID = @POID",
         );
     },
 
@@ -197,17 +191,9 @@ const purchaseOrderQueries = {
         const request = new sql.Request();
         request.input("WarehouseID", sql.Int, warehouseId);
         request.input("ProductID", sql.Int, productId);
-        request.input("Quantity", sql.Int, quantity);
-        await request.query(`
-            MERGE Inventory AS target
-            USING (SELECT @WarehouseID AS WarehouseID, @ProductID AS ProductID, @Quantity AS Quantity) AS source
-            ON target.WarehouseID = source.WarehouseID AND target.ProductID = source.ProductID
-            WHEN MATCHED THEN
-                UPDATE SET target.Quantity = target.Quantity + source.Quantity
-            WHEN NOT MATCHED THEN
-                INSERT (WarehouseID, ProductID, Quantity, LowStockThreshold)
-                VALUES (source.WarehouseID, source.ProductID, source.Quantity, 10);
-        `);
+        request.input("QuantityChange", sql.Int, quantity);
+        const result = await request.execute("sp_UpsertInventory");
+        return result.recordset[0]?.NewQuantity;
     },
 };
 

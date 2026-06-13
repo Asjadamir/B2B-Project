@@ -68,11 +68,7 @@ const productQueries = {
         request.input("UnitOfMeasure", sql.NVarChar(50), unitOfMeasure);
         request.input("SellingPrice", sql.Decimal(10, 2), sellingPrice);
         request.input("BusinessID", sql.Int, businessId);
-        const result = await request.query(`
-            INSERT INTO Product (ProductName, SKU, CategoryID, UnitOfMeasure, SellingPrice, BusinessID)
-            OUTPUT INSERTED.ProductID
-            VALUES (@ProductName, @SKU, @CategoryID, @UnitOfMeasure, @SellingPrice, @BusinessID)
-        `);
+        const result = await request.execute("sp_CreateProduct");
         return result.recordset[0].ProductID;
     },
 
@@ -84,12 +80,7 @@ const productQueries = {
         request.input("CategoryID", sql.Int, categoryId);
         request.input("UnitOfMeasure", sql.NVarChar(50), unitOfMeasure);
         request.input("SellingPrice", sql.Decimal(10, 2), sellingPrice);
-        await request.query(`
-            UPDATE Product
-            SET ProductName = @ProductName, SKU = @SKU, CategoryID = @CategoryID,
-                UnitOfMeasure = @UnitOfMeasure, SellingPrice = @SellingPrice
-            WHERE ProductID = @ProductID
-        `);
+        await request.execute("sp_UpdateProduct");
     },
 
     deactivateProduct: async (productId) => {
@@ -102,18 +93,14 @@ const productQueries = {
         const request = new sql.Request();
         request.input("ProductID", sql.Int, productId);
         request.input("SupplierID", sql.Int, supplierId);
-        await request.query(
-            "INSERT INTO Product_Supplier (ProductID, SupplierID) VALUES (@ProductID, @SupplierID)"
-        );
+        await request.execute("sp_LinkSupplier");
     },
 
     unlinkSupplier: async (productId, supplierId) => {
         const request = new sql.Request();
         request.input("ProductID", sql.Int, productId);
         request.input("SupplierID", sql.Int, supplierId);
-        await request.query(
-            "DELETE FROM Product_Supplier WHERE ProductID = @ProductID AND SupplierID = @SupplierID"
-        );
+        await request.execute("sp_UnlinkSupplier");
     },
 
     isSupplierLinked: async (productId, supplierId) => {

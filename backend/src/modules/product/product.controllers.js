@@ -1,5 +1,6 @@
 import queries from "./product.queries.js";
 import logAudit from "../../utils/audit.js";
+import sql from "mssql";
 import asyncHandler from "../../utils/asyncHandler.js";
 
 const MANAGING_ROLES = ["Owner", "Manager"];
@@ -10,7 +11,9 @@ const productControllers = {
         const userId = req.user.userId;
 
         if (!businessId) {
-            return res.status(400).json({ message: "businessId query param is required." });
+            return res
+                .status(400)
+                .json({ message: "businessId query param is required." });
         }
 
         const staffRecord = await queries.getStaffRecord(userId, businessId);
@@ -31,7 +34,10 @@ const productControllers = {
             return res.status(404).json({ message: "Product not found." });
         }
 
-        const staffRecord = await queries.getStaffRecord(userId, product.BusinessID);
+        const staffRecord = await queries.getStaffRecord(
+            userId,
+            product.BusinessID,
+        );
         if (!staffRecord) {
             return res.status(403).json({ message: "Access denied." });
         }
@@ -41,11 +47,30 @@ const productControllers = {
     }),
 
     create: asyncHandler(async (req, res) => {
-        const { businessId, productName, sku, categoryId, unitOfMeasure, sellingPrice } = req.body;
+        const {
+            businessId,
+            productName,
+            sku,
+            categoryId,
+            unitOfMeasure,
+            sellingPrice,
+        } = req.body;
         const userId = req.user.userId;
 
-        if (!businessId || !productName || !sku || !categoryId || !unitOfMeasure || sellingPrice == null) {
-            return res.status(400).json({ message: "businessId, productName, sku, categoryId, unitOfMeasure, and sellingPrice are required." });
+        if (
+            !businessId ||
+            !productName ||
+            !sku ||
+            !categoryId ||
+            !unitOfMeasure ||
+            sellingPrice == null
+        ) {
+            return res
+                .status(400)
+                .json({
+                    message:
+                        "businessId, productName, sku, categoryId, unitOfMeasure, and sellingPrice are required.",
+                });
         }
 
         const staffRecord = await queries.getStaffRecord(userId, businessId);
@@ -53,18 +78,33 @@ const productControllers = {
             return res.status(403).json({ message: "Access denied." });
         }
         if (!MANAGING_ROLES.includes(staffRecord.RoleName)) {
-            return res.status(403).json({ message: "Only Owner or Manager can add products." });
+            return res
+                .status(403)
+                .json({ message: "Only Owner or Manager can add products." });
         }
 
         const category = await queries.getCategoryById(categoryId);
         if (!category || category.BusinessID !== Number(businessId)) {
-            return res.status(400).json({ message: "Invalid category for this business." });
+            return res
+                .status(400)
+                .json({ message: "Invalid category for this business." });
         }
 
         const duplicate = await queries.findBySKU(sku.trim(), businessId);
         if (duplicate) {
-            return res.status(409).json({ message: "A product with this SKU already exists in this business." });
+            return res
+                .status(409)
+                .json({
+                    message:
+                        "A product with this SKU already exists in this business.",
+                });
         }
+
+        const request = new sql.Request();
+        request.input("ActorID", sql.Int, userId);
+        await request.query(
+            "EXEC sp_set_session_context @key = N'actor_id', @value = @ActorID",
+        );
 
         const productId = await queries.createProduct(
             productName.trim(),
@@ -75,17 +115,30 @@ const productControllers = {
             businessId,
         );
 
-        await logAudit({ businessId, actorId: userId, action: "CREATE_PRODUCT", entityType: "Product", entityId: productId, details: `Created product "${productName}" (SKU: ${sku.trim().toUpperCase()}).` });
-        return res.status(201).json({ message: "Product created successfully.", productId });
+        return res
+            .status(201)
+            .json({ message: "Product created successfully.", productId });
     }),
 
     update: asyncHandler(async (req, res) => {
         const { id } = req.params;
-        const { productName, sku, categoryId, unitOfMeasure, sellingPrice } = req.body;
+        const { productName, sku, categoryId, unitOfMeasure, sellingPrice } =
+            req.body;
         const userId = req.user.userId;
 
-        if (!productName || !sku || !categoryId || !unitOfMeasure || sellingPrice == null) {
-            return res.status(400).json({ message: "productName, sku, categoryId, unitOfMeasure, and sellingPrice are required." });
+        if (
+            !productName ||
+            !sku ||
+            !categoryId ||
+            !unitOfMeasure ||
+            sellingPrice == null
+        ) {
+            return res
+                .status(400)
+                .json({
+                    message:
+                        "productName, sku, categoryId, unitOfMeasure, and sellingPrice are required.",
+                });
         }
 
         const product = await queries.getProductById(id);
@@ -93,27 +146,58 @@ const productControllers = {
             return res.status(404).json({ message: "Product not found." });
         }
 
-        const staffRecord = await queries.getStaffRecord(userId, product.BusinessID);
+        const staffRecord = await queries.getStaffRecord(
+            userId,
+            product.BusinessID,
+        );
         if (!staffRecord) {
             return res.status(403).json({ message: "Access denied." });
         }
         if (!MANAGING_ROLES.includes(staffRecord.RoleName)) {
-            return res.status(403).json({ message: "Only Owner or Manager can update products." });
+            return res
+                .status(403)
+                .json({
+                    message: "Only Owner or Manager can update products.",
+                });
         }
 
         const category = await queries.getCategoryById(categoryId);
         if (!category || category.BusinessID !== product.BusinessID) {
-            return res.status(400).json({ message: "Invalid category for this business." });
+            return res
+                .status(400)
+                .json({ message: "Invalid category for this business." });
         }
 
-        const duplicate = await queries.findBySKU(sku.trim(), product.BusinessID);
+        const duplicate = await queries.findBySKU(
+            sku.trim(),
+            product.BusinessID,
+        );
         if (duplicate && duplicate.ProductID !== Number(id)) {
-            return res.status(409).json({ message: "A product with this SKU already exists in this business." });
+            return res
+                .status(409)
+                .json({
+                    message:
+                        "A product with this SKU already exists in this business.",
+                });
         }
 
-        await queries.updateProduct(id, productName.trim(), sku.trim().toUpperCase(), categoryId, unitOfMeasure.trim(), sellingPrice);
-        await logAudit({ businessId: product.BusinessID, actorId: userId, action: "UPDATE_PRODUCT", entityType: "Product", entityId: id, details: `Updated product "${product.ProductName}": name="${productName}", SKU="${sku.trim().toUpperCase()}", price=${sellingPrice}.` });
-        return res.status(200).json({ message: "Product updated successfully." });
+        const request = new sql.Request();
+        request.input("ActorID", sql.Int, userId);
+        await request.query(
+            "EXEC sp_set_session_context @key = N'actor_id', @value = @ActorID",
+        );
+
+        await queries.updateProduct(
+            id,
+            productName.trim(),
+            sku.trim().toUpperCase(),
+            categoryId,
+            unitOfMeasure.trim(),
+            sellingPrice,
+        );
+        return res
+            .status(200)
+            .json({ message: "Product updated successfully." });
     }),
 
     remove: asyncHandler(async (req, res) => {
@@ -125,17 +209,31 @@ const productControllers = {
             return res.status(404).json({ message: "Product not found." });
         }
 
-        const staffRecord = await queries.getStaffRecord(userId, product.BusinessID);
+        const staffRecord = await queries.getStaffRecord(
+            userId,
+            product.BusinessID,
+        );
         if (!staffRecord) {
             return res.status(403).json({ message: "Access denied." });
         }
         if (!MANAGING_ROLES.includes(staffRecord.RoleName)) {
-            return res.status(403).json({ message: "Only Owner or Manager can remove products." });
+            return res
+                .status(403)
+                .json({
+                    message: "Only Owner or Manager can remove products.",
+                });
         }
 
+        const request = new sql.Request();
+        request.input("ActorID", sql.Int, userId);
+        await request.query(
+            "EXEC sp_set_session_context @key = N'actor_id', @value = @ActorID",
+        );
+
         await queries.deactivateProduct(id);
-        await logAudit({ businessId: product.BusinessID, actorId: userId, action: "DEACTIVATE_PRODUCT", entityType: "Product", entityId: id, details: `Deactivated product "${product.ProductName}" (SKU: ${product.SKU}).` });
-        return res.status(200).json({ message: "Product deactivated successfully." });
+        return res
+            .status(200)
+            .json({ message: "Product deactivated successfully." });
     }),
 
     addSupplier: asyncHandler(async (req, res) => {
@@ -152,27 +250,47 @@ const productControllers = {
             return res.status(404).json({ message: "Product not found." });
         }
 
-        const staffRecord = await queries.getStaffRecord(userId, product.BusinessID);
+        const staffRecord = await queries.getStaffRecord(
+            userId,
+            product.BusinessID,
+        );
         if (!staffRecord) {
             return res.status(403).json({ message: "Access denied." });
         }
         if (!MANAGING_ROLES.includes(staffRecord.RoleName)) {
-            return res.status(403).json({ message: "Only Owner or Manager can link suppliers." });
+            return res
+                .status(403)
+                .json({ message: "Only Owner or Manager can link suppliers." });
         }
 
         const supplier = await queries.getSupplierById(supplierId);
         if (!supplier || supplier.BusinessID !== product.BusinessID) {
-            return res.status(400).json({ message: "Invalid supplier for this business." });
+            return res
+                .status(400)
+                .json({ message: "Invalid supplier for this business." });
         }
 
         const alreadyLinked = await queries.isSupplierLinked(id, supplierId);
         if (alreadyLinked) {
-            return res.status(409).json({ message: "This supplier is already linked to the product." });
+            return res
+                .status(409)
+                .json({
+                    message: "This supplier is already linked to the product.",
+                });
         }
 
         await queries.linkSupplier(id, supplierId);
-        await logAudit({ businessId: product.BusinessID, actorId: userId, action: "LINK_SUPPLIER", entityType: "Product", entityId: id, details: `Linked supplier "${supplier.SupplierName}" to product "${product.ProductName}".` });
-        return res.status(201).json({ message: "Supplier linked successfully." });
+        await logAudit({
+            businessId: product.BusinessID,
+            actorId: userId,
+            action: "LINK_SUPPLIER",
+            entityType: "Product",
+            entityId: id,
+            details: `Linked supplier "${supplier.SupplierName}" to product "${product.ProductName}".`,
+        });
+        return res
+            .status(201)
+            .json({ message: "Supplier linked successfully." });
     }),
 
     removeSupplier: asyncHandler(async (req, res) => {
@@ -184,22 +302,42 @@ const productControllers = {
             return res.status(404).json({ message: "Product not found." });
         }
 
-        const staffRecord = await queries.getStaffRecord(userId, product.BusinessID);
+        const staffRecord = await queries.getStaffRecord(
+            userId,
+            product.BusinessID,
+        );
         if (!staffRecord) {
             return res.status(403).json({ message: "Access denied." });
         }
         if (!MANAGING_ROLES.includes(staffRecord.RoleName)) {
-            return res.status(403).json({ message: "Only Owner or Manager can unlink suppliers." });
+            return res
+                .status(403)
+                .json({
+                    message: "Only Owner or Manager can unlink suppliers.",
+                });
         }
 
         const linked = await queries.isSupplierLinked(id, supplierId);
         if (!linked) {
-            return res.status(404).json({ message: "This supplier is not linked to the product." });
+            return res
+                .status(404)
+                .json({
+                    message: "This supplier is not linked to the product.",
+                });
         }
 
         await queries.unlinkSupplier(id, supplierId);
-        await logAudit({ businessId: product.BusinessID, actorId: userId, action: "UNLINK_SUPPLIER", entityType: "Product", entityId: id, details: `Unlinked supplier #${supplierId} from product "${product.ProductName}".` });
-        return res.status(200).json({ message: "Supplier unlinked successfully." });
+        await logAudit({
+            businessId: product.BusinessID,
+            actorId: userId,
+            action: "UNLINK_SUPPLIER",
+            entityType: "Product",
+            entityId: id,
+            details: `Unlinked supplier #${supplierId} from product "${product.ProductName}".`,
+        });
+        return res
+            .status(200)
+            .json({ message: "Supplier unlinked successfully." });
     }),
 };
 
